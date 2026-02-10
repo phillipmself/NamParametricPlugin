@@ -1,12 +1,30 @@
 #pragma once
 
+#include <atomic>
+#include <future>
+#include <memory>
+#include <mutex>
+#include <optional>
+#include <string>
+#include <vector>
+
 #include <juce_audio_processors/juce_audio_processors.h>
+
+#include "DSP/NamModelEngine.h"
 
 class NamParametricPluginAudioProcessor final : public juce::AudioProcessor {
  public:
   struct ParamIDs {
     static constexpr const char* inputGainDb = "inputGainDb";
     static constexpr const char* outputGainDb = "outputGainDb";
+  };
+
+  struct RuntimeParameterInfo {
+    juce::String name;
+    bool isBoolean = false;
+    double defaultValue = 0.0;
+    std::optional<double> minValue;
+    std::optional<double> maxValue;
   };
 
   NamParametricPluginAudioProcessor();
@@ -36,10 +54,39 @@ class NamParametricPluginAudioProcessor final : public juce::AudioProcessor {
   void getStateInformation(juce::MemoryBlock& destData) override;
   void setStateInformation(const void* data, int sizeInBytes) override;
 
+  void LoadModelAsync(const juce::File& modelFile);
+  juce::String GetStatusText() const;
+  juce::String GetModelPath() const;
+  bool HasModelLoaded() const;
+  std::vector<RuntimeParameterInfo> GetRuntimeParameters() const;
+
   juce::AudioProcessorValueTreeState mValueTree;
 
  private:
+  struct AsyncLoadResult {
+    bool success = false;
+    std::unique_ptr<namparametric::dsp::NamModelEngine> model;
+    juce::String message;
+    juce::String loadedPath;
+    std::vector<RuntimeParameterInfo> runtimeParameters;
+  };
+
   juce::AudioProcessorValueTreeState::ParameterLayout CreateParameterLayout();
+  void TryApplyStagedModel();
+
+  mutable std::mutex mLoadMutex;
+  std::optional<std::future<AsyncLoadResult>> mLoadFuture;
+
+  std::unique_ptr<namparametric::dsp::NamModelEngine> mModel;
+  juce::String mStatusText = "No model loaded";
+  juce::String mModelPath;
+  std::vector<RuntimeParameterInfo> mRuntimeParameters;
+
+  std::vector<float> mInputScratch;
+  std::vector<float> mOutputScratch;
+
+  std::atomic<double> mCurrentSampleRate{48000.0};
+  std::atomic<int> mCurrentBlockSize{512};
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NamParametricPluginAudioProcessor)
 };

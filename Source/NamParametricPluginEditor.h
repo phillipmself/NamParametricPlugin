@@ -4,7 +4,8 @@
 
 #include "NamParametricPluginProcessor.h"
 
-class NamParametricPluginAudioProcessorEditor final : public juce::AudioProcessorEditor {
+class NamParametricPluginAudioProcessorEditor final : public juce::AudioProcessorEditor,
+                                                      private juce::Timer {
  public:
   explicit NamParametricPluginAudioProcessorEditor(NamParametricPluginAudioProcessor&);
   ~NamParametricPluginAudioProcessorEditor() override = default;
@@ -16,13 +17,20 @@ class NamParametricPluginAudioProcessorEditor final : public juce::AudioProcesso
   using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
 
   static void InitializeGainSlider(juce::Slider& slider);
+  void timerCallback() override;
 
   NamParametricPluginAudioProcessor& mProcessor;
   juce::Label mTitle;
+  juce::TextButton mLoadModelButton;
+  juce::Label mModelPathLabel;
+  juce::Label mStatusLabel;
+
   juce::Slider mInputGain;
   juce::Slider mOutputGain;
   juce::Label mInputLabel;
   juce::Label mOutputLabel;
+
+  std::unique_ptr<juce::FileChooser> mModelChooser;
 
   std::unique_ptr<SliderAttachment> mInputAttachment;
   std::unique_ptr<SliderAttachment> mOutputAttachment;
