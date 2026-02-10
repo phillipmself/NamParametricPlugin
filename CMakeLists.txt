@@ -39,6 +39,34 @@ set(NAM_CORE_SOURCES
   ${NAM_CORE_NAM_DIR}/wavenet.cpp
 )
 
+add_library(nam_core_runtime STATIC
+  ${NAM_CORE_SOURCES}
+)
+
+set_target_properties(nam_core_runtime PROPERTIES
+  POSITION_INDEPENDENT_CODE ON
+)
+
+target_include_directories(nam_core_runtime
+  SYSTEM PRIVATE
+    ${NAM_CORE_DIR}
+    ${NAM_CORE_NAM_DIR}
+    ${NAM_CORE_EIGEN_DIR}
+    ${NAM_CORE_NLOHMANN_DIR}
+)
+
+target_compile_definitions(nam_core_runtime PRIVATE
+  EIGEN_MPL2_ONLY=1
+  EIGEN_NO_DEBUG=1
+  NAM_SAMPLE_FLOAT=1
+)
+
+if(MSVC)
+  target_compile_options(nam_core_runtime PRIVATE /W0)
+else()
+  target_compile_options(nam_core_runtime PRIVATE -w)
+endif()
+
 juce_add_plugin(${TARGET_NAME}
   COMPANY_NAME "phillipmself"
   PRODUCT_NAME "NAM Parametric Plugin"
@@ -61,11 +89,13 @@ target_sources(${TARGET_NAME} PRIVATE
   Source/NamParametricPluginEditor.h
   Source/NamParametricPluginProcessor.cpp
   Source/NamParametricPluginProcessor.h
-  ${NAM_CORE_SOURCES}
 )
 
 target_include_directories(${TARGET_NAME} PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}/Source
+)
+
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
   ${NAM_CORE_DIR}
   ${NAM_CORE_NAM_DIR}
   ${NAM_CORE_EIGEN_DIR}
@@ -83,6 +113,7 @@ target_compile_definitions(${TARGET_NAME} PRIVATE
 
 target_link_libraries(${TARGET_NAME}
   PRIVATE
+    nam_core_runtime
     juce::juce_audio_utils
     juce::juce_dsp
   PUBLIC
