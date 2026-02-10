@@ -1,5 +1,7 @@
 #pragma once
 
+#include <juce_audio_processors/juce_audio_processors.h>
+
 #include <atomic>
 #include <future>
 #include <memory>
@@ -7,8 +9,6 @@
 #include <optional>
 #include <string>
 #include <vector>
-
-#include <juce_audio_processors/juce_audio_processors.h>
 
 #include "DSP/NamModelEngine.h"
 

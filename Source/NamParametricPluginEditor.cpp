@@ -14,10 +14,11 @@ NamParametricPluginAudioProcessorEditor::NamParametricPluginAudioProcessorEditor
 
   mLoadModelButton.setButtonText("Load .nam Model");
   mLoadModelButton.onClick = [this]() {
-    mModelChooser = std::make_unique<juce::FileChooser>("Select a NAM model", juce::File(), "*.nam");
+    mModelChooser =
+        std::make_unique<juce::FileChooser>("Select a NAM model", juce::File(), "*.nam");
 
-    const int chooserFlags = juce::FileBrowserComponent::openMode |
-                             juce::FileBrowserComponent::canSelectFiles;
+    const int chooserFlags =
+        juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
 
     mModelChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& chooser) {
       const juce::File selectedFile = chooser.getResult();
@@ -50,7 +51,8 @@ NamParametricPluginAudioProcessorEditor::NamParametricPluginAudioProcessorEditor
   mInputAttachment = std::make_unique<SliderAttachment>(
       mProcessor.mValueTree, NamParametricPluginAudioProcessor::ParamIDs::inputGainDb, mInputGain);
   mOutputAttachment = std::make_unique<SliderAttachment>(
-      mProcessor.mValueTree, NamParametricPluginAudioProcessor::ParamIDs::outputGainDb, mOutputGain);
+      mProcessor.mValueTree, NamParametricPluginAudioProcessor::ParamIDs::outputGainDb,
+      mOutputGain);
 
   startTimerHz(12);
   setSize(560, 260);

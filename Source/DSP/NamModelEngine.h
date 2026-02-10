@@ -32,7 +32,7 @@ class NamModelEngine {
   [[nodiscard]] double GetExpectedSampleRate() const;
   [[nodiscard]] const std::vector<ModelParameterInfo>& GetParameterInfos() const;
 
- bool SetParameterValue(const std::string& name, double value, std::string& errorMessage);
+  bool SetParameterValue(const std::string& name, double value, std::string& errorMessage);
   [[nodiscard]] std::unordered_map<std::string, double> GetParameterValuesByName() const;
   void ApplyParameterValues(const std::unordered_map<std::string, double>& values);
 

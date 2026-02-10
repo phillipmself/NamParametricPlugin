@@ -9,9 +9,9 @@
 #include <stdexcept>
 
 namespace iplug {
-  // AudioDSPTools resampling code assumes this is an iPlug plugin
+// AudioDSPTools resampling code assumes this is an iPlug plugin
 inline constexpr double PI = std::numbers::pi_v<double>;
-}
+}  // namespace iplug
 
 #ifndef DEFAULT_BLOCK_SIZE
 #define DEFAULT_BLOCK_SIZE 1024
@@ -27,8 +27,7 @@ constexpr double kAssumedUnknownModelSampleRate = 48000.0;
 }  // namespace
 
 struct NamModelEngine::ResamplerState {
-  explicit ResamplerState(double renderingSampleRate)
-      : resampler(renderingSampleRate) {}
+  explicit ResamplerState(double renderingSampleRate) : resampler(renderingSampleRate) {}
 
   std::function<void(NAM_SAMPLE**, NAM_SAMPLE**, int)> blockProcessFunc;
   ::dsp::ResamplingContainer<NAM_SAMPLE, 1, 12> resampler;
@@ -86,7 +85,8 @@ void NamModelEngine::Reset(double sampleRate, int maxBlockSize) {
 
   const double modelSampleRate = GetModelSampleRateForProcessing();
   mResamplerState = std::make_unique<ResamplerState>(modelSampleRate);
-  mResamplerState->blockProcessFunc = [this](NAM_SAMPLE** input, NAM_SAMPLE** output, int numFrames) {
+  mResamplerState->blockProcessFunc = [this](NAM_SAMPLE** input, NAM_SAMPLE** output,
+                                             int numFrames) {
     mModel->process(input, output, numFrames);
   };
   mResamplerState->resampler.Reset(sampleRate, maxBlockSize);

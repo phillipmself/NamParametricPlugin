@@ -152,26 +152,27 @@ void NamParametricPluginAudioProcessor::LoadModelAsync(const juce::File& modelFi
   std::lock_guard<std::mutex> lock(mLoadMutex);
   mStatusText = "Loading model: " + modelFile.getFileName();
 
-  mLoadFuture.emplace(std::async(std::launch::async, [modelPath, fullPath, sampleRate, blockSize]() {
-    AsyncLoadResult result;
-    auto stagedModel = std::make_unique<namparametric::dsp::NamModelEngine>();
+  mLoadFuture.emplace(
+      std::async(std::launch::async, [modelPath, fullPath, sampleRate, blockSize]() {
+        AsyncLoadResult result;
+        auto stagedModel = std::make_unique<namparametric::dsp::NamModelEngine>();
 
-    std::string error;
-    if (!stagedModel->LoadModel(modelPath, error)) {
-      result.success = false;
-      result.message = "Failed to load model: " + juce::String(error);
-      return result;
-    }
+        std::string error;
+        if (!stagedModel->LoadModel(modelPath, error)) {
+          result.success = false;
+          result.message = "Failed to load model: " + juce::String(error);
+          return result;
+        }
 
-    stagedModel->Reset(sampleRate, blockSize);
+        stagedModel->Reset(sampleRate, blockSize);
 
-    result.success = true;
-    result.loadedPath = fullPath;
-    result.runtimeParameters = ConvertRuntimeParameters(stagedModel->GetParameterInfos());
-    result.message = "Loaded model: " + juce::File(fullPath).getFileName();
-    result.model = std::move(stagedModel);
-    return result;
-  }));
+        result.success = true;
+        result.loadedPath = fullPath;
+        result.runtimeParameters = ConvertRuntimeParameters(stagedModel->GetParameterInfos());
+        result.message = "Loaded model: " + juce::File(fullPath).getFileName();
+        result.model = std::move(stagedModel);
+        return result;
+      }));
 }
 
 juce::String NamParametricPluginAudioProcessor::GetStatusText() const {
