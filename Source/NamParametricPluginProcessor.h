@@ -8,6 +8,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "DSP/NamModelEngine.h"
@@ -59,6 +60,8 @@ class NamParametricPluginAudioProcessor final : public juce::AudioProcessor {
   juce::String GetModelPath() const;
   bool HasModelLoaded() const;
   std::vector<RuntimeParameterInfo> GetRuntimeParameters() const;
+  void SetRuntimeParameterValue(const juce::String& name, double value);
+  std::optional<double> GetRuntimeParameterValue(const juce::String& name) const;
 
   juce::AudioProcessorValueTreeState mValueTree;
 
@@ -69,10 +72,12 @@ class NamParametricPluginAudioProcessor final : public juce::AudioProcessor {
     juce::String message;
     juce::String loadedPath;
     std::vector<RuntimeParameterInfo> runtimeParameters;
+    std::unordered_map<std::string, double> runtimeParameterValues;
   };
 
   juce::AudioProcessorValueTreeState::ParameterLayout CreateParameterLayout();
   void TryApplyStagedModel();
+  void ApplyPendingRuntimeParameterChanges();
 
   mutable std::mutex mLoadMutex;
   std::optional<std::future<AsyncLoadResult>> mLoadFuture;
@@ -81,6 +86,9 @@ class NamParametricPluginAudioProcessor final : public juce::AudioProcessor {
   juce::String mStatusText = "No model loaded";
   juce::String mModelPath;
   std::vector<RuntimeParameterInfo> mRuntimeParameters;
+  mutable std::mutex mRuntimeParameterMutex;
+  std::unordered_map<std::string, double> mRuntimeParameterValues;
+  std::unordered_map<std::string, double> mPendingRuntimeParameterValues;
 
   std::vector<float> mInputScratch;
   std::vector<float> mOutputScratch;

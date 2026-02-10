@@ -57,6 +57,7 @@ void NamParametricPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& b
   juce::ignoreUnused(midiMessages);
 
   TryApplyStagedModel();
+  ApplyPendingRuntimeParameterChanges();
 
   if (buffer.getNumChannels() == 0) {
     return;
@@ -131,6 +132,11 @@ void NamParametricPluginAudioProcessor::TryApplyStagedModel() {
     mModel = std::move(result.model);
     mModelPath = result.loadedPath;
     mRuntimeParameters = std::move(result.runtimeParameters);
+    {
+      std::lock_guard<std::mutex> runtimeLock(mRuntimeParameterMutex);
+      mRuntimeParameterValues = std::move(result.runtimeParameterValues);
+      mPendingRuntimeParameterValues.clear();
+    }
     mStatusText = result.message;
   } else {
     mStatusText = result.message;
@@ -169,6 +175,7 @@ void NamParametricPluginAudioProcessor::LoadModelAsync(const juce::File& modelFi
         result.success = true;
         result.loadedPath = fullPath;
         result.runtimeParameters = ConvertRuntimeParameters(stagedModel->GetParameterInfos());
+        result.runtimeParameterValues = stagedModel->GetParameterValuesByName();
         result.message = "Loaded model: " + juce::File(fullPath).getFileName();
         result.model = std::move(stagedModel);
         return result;
@@ -194,6 +201,56 @@ std::vector<NamParametricPluginAudioProcessor::RuntimeParameterInfo>
 NamParametricPluginAudioProcessor::GetRuntimeParameters() const {
   std::lock_guard<std::mutex> lock(mLoadMutex);
   return mRuntimeParameters;
+}
+
+void NamParametricPluginAudioProcessor::SetRuntimeParameterValue(const juce::String& name,
+                                                                 double value) {
+  if (name.isEmpty()) {
+    return;
+  }
+
+  const std::string key = name.toStdString();
+
+  std::lock_guard<std::mutex> lock(mRuntimeParameterMutex);
+  mRuntimeParameterValues[key] = value;
+  mPendingRuntimeParameterValues[key] = value;
+}
+
+std::optional<double> NamParametricPluginAudioProcessor::GetRuntimeParameterValue(
+    const juce::String& name) const {
+  if (name.isEmpty()) {
+    return std::nullopt;
+  }
+
+  const std::string key = name.toStdString();
+  std::lock_guard<std::mutex> lock(mRuntimeParameterMutex);
+  const auto it = mRuntimeParameterValues.find(key);
+  if (it == mRuntimeParameterValues.end()) {
+    return std::nullopt;
+  }
+
+  return it->second;
+}
+
+void NamParametricPluginAudioProcessor::ApplyPendingRuntimeParameterChanges() {
+  if (mModel == nullptr || !mModel->IsLoaded()) {
+    return;
+  }
+
+  std::unordered_map<std::string, double> pending;
+  {
+    std::lock_guard<std::mutex> lock(mRuntimeParameterMutex);
+    if (mPendingRuntimeParameterValues.empty()) {
+      return;
+    }
+
+    pending.swap(mPendingRuntimeParameterValues);
+  }
+
+  for (const auto& [name, value] : pending) {
+    std::string ignoredError;
+    mModel->SetParameterValue(name, value, ignoredError);
+  }
 }
 
 void NamParametricPluginAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {
