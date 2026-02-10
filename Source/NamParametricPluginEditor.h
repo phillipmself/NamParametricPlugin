@@ -13,8 +13,19 @@ class NamParametricPluginAudioProcessorEditor final : public juce::AudioProcesso
   void resized() override;
 
  private:
+  using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
+
+  static void InitializeGainSlider(juce::Slider& slider);
+
   NamParametricPluginAudioProcessor& mProcessor;
   juce::Label mTitle;
+  juce::Slider mInputGain;
+  juce::Slider mOutputGain;
+  juce::Label mInputLabel;
+  juce::Label mOutputLabel;
+
+  std::unique_ptr<SliderAttachment> mInputAttachment;
+  std::unique_ptr<SliderAttachment> mOutputAttachment;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NamParametricPluginAudioProcessorEditor)
 };

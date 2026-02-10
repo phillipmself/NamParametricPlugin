@@ -4,6 +4,11 @@
 
 class NamParametricPluginAudioProcessor final : public juce::AudioProcessor {
  public:
+  struct ParamIDs {
+    static constexpr const char* inputGainDb = "inputGainDb";
+    static constexpr const char* outputGainDb = "outputGainDb";
+  };
+
   NamParametricPluginAudioProcessor();
   ~NamParametricPluginAudioProcessor() override = default;
 
@@ -31,6 +36,10 @@ class NamParametricPluginAudioProcessor final : public juce::AudioProcessor {
   void getStateInformation(juce::MemoryBlock& destData) override;
   void setStateInformation(const void* data, int sizeInBytes) override;
 
+  juce::AudioProcessorValueTreeState mValueTree;
+
  private:
+  juce::AudioProcessorValueTreeState::ParameterLayout CreateParameterLayout();
+
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NamParametricPluginAudioProcessor)
 };
