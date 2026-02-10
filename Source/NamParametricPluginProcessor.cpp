@@ -7,6 +7,10 @@
 
 namespace {
 constexpr const char* kModelPathStateKey = "modelPath";
+constexpr const char* kRuntimeParamsStateType = "RUNTIME_PARAMS";
+constexpr const char* kRuntimeParamStateType = "PARAM";
+constexpr const char* kRuntimeParamNameStateKey = "name";
+constexpr const char* kRuntimeParamValueStateKey = "value";
 
 std::vector<NamParametricPluginAudioProcessor::RuntimeParameterInfo> ConvertRuntimeParameters(
     const std::vector<namparametric::dsp::ModelParameterInfo>& params) {
@@ -24,6 +28,45 @@ std::vector<NamParametricPluginAudioProcessor::RuntimeParameterInfo> ConvertRunt
   }
 
   return out;
+}
+
+juce::ValueTree CreateRuntimeParameterState(
+    const std::unordered_map<std::string, double>& runtimeValues) {
+  juce::ValueTree runtimeTree(kRuntimeParamsStateType);
+  for (const auto& [name, value] : runtimeValues) {
+    juce::ValueTree paramTree(kRuntimeParamStateType);
+    paramTree.setProperty(kRuntimeParamNameStateKey, juce::String(name), nullptr);
+    paramTree.setProperty(kRuntimeParamValueStateKey, value, nullptr);
+    runtimeTree.addChild(paramTree, -1, nullptr);
+  }
+  return runtimeTree;
+}
+
+std::unordered_map<std::string, double> ParseRuntimeParameterState(const juce::ValueTree& state) {
+  std::unordered_map<std::string, double> runtimeValues;
+
+  const auto runtimeTree = state.getChildWithName(kRuntimeParamsStateType);
+  if (!runtimeTree.isValid()) {
+    return runtimeValues;
+  }
+
+  for (int i = 0; i < runtimeTree.getNumChildren(); ++i) {
+    const auto paramTree = runtimeTree.getChild(i);
+    if (!paramTree.hasType(kRuntimeParamStateType)) {
+      continue;
+    }
+
+    const juce::String name = paramTree.getProperty(kRuntimeParamNameStateKey).toString();
+    if (name.isEmpty()) {
+      continue;
+    }
+
+    const auto valueVar = paramTree.getProperty(kRuntimeParamValueStateKey);
+    const double value = static_cast<double>(valueVar);
+    runtimeValues[name.toStdString()] = value;
+  }
+
+  return runtimeValues;
 }
 }  // namespace
 
@@ -136,6 +179,20 @@ void NamParametricPluginAudioProcessor::TryApplyStagedModel() {
       std::lock_guard<std::mutex> runtimeLock(mRuntimeParameterMutex);
       mRuntimeParameterValues = std::move(result.runtimeParameterValues);
       mPendingRuntimeParameterValues.clear();
+      if (mHasPendingRestoredRuntimeValues) {
+        for (const auto& [name, value] : mRestoredRuntimeParameterValues) {
+          const auto existing = mRuntimeParameterValues.find(name);
+          if (existing == mRuntimeParameterValues.end()) {
+            continue;
+          }
+
+          existing->second = value;
+          mPendingRuntimeParameterValues[name] = value;
+        }
+
+        mRestoredRuntimeParameterValues.clear();
+        mHasPendingRestoredRuntimeValues = false;
+      }
     }
     mStatusText = result.message;
   } else {
@@ -255,10 +312,26 @@ void NamParametricPluginAudioProcessor::ApplyPendingRuntimeParameterChanges() {
 
 void NamParametricPluginAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {
   auto state = mValueTree.copyState();
+  std::unordered_map<std::string, double> runtimeValues;
 
   {
     std::lock_guard<std::mutex> lock(mLoadMutex);
     state.setProperty(kModelPathStateKey, mModelPath, nullptr);
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(mRuntimeParameterMutex);
+    runtimeValues = mRuntimeParameterValues;
+  }
+
+  auto child = state.getChildWithName(kRuntimeParamsStateType);
+  while (child.isValid()) {
+    state.removeChild(child, nullptr);
+    child = state.getChildWithName(kRuntimeParamsStateType);
+  }
+
+  if (!runtimeValues.empty()) {
+    state.addChild(CreateRuntimeParameterState(runtimeValues), -1, nullptr);
   }
 
   std::unique_ptr<juce::XmlElement> xml(state.createXml());
@@ -274,8 +347,11 @@ void NamParametricPluginAudioProcessor::setStateInformation(const void* data, in
   auto tree = juce::ValueTree::fromXml(*xml);
   if (tree.isValid() && tree.hasType(mValueTree.state.getType())) {
     mValueTree.replaceState(tree);
+    const auto restoredRuntimeValues = ParseRuntimeParameterState(tree);
 
     const juce::String restoredPath = tree.getProperty(kModelPathStateKey).toString();
+    bool shouldReloadModel = false;
+
     if (restoredPath.isNotEmpty()) {
       {
         std::lock_guard<std::mutex> lock(mLoadMutex);
@@ -284,10 +360,25 @@ void NamParametricPluginAudioProcessor::setStateInformation(const void* data, in
 
       const juce::File modelFile(restoredPath);
       if (modelFile.existsAsFile() && modelFile.hasReadAccess()) {
+        shouldReloadModel = true;
         LoadModelAsync(modelFile);
       } else {
         std::lock_guard<std::mutex> lock(mLoadMutex);
         mStatusText = "Stored model path is unavailable: " + restoredPath;
+      }
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(mRuntimeParameterMutex);
+      mRuntimeParameterValues = restoredRuntimeValues;
+      mPendingRuntimeParameterValues.clear();
+      mRestoredRuntimeParameterValues = restoredRuntimeValues;
+      mHasPendingRestoredRuntimeValues = !mRestoredRuntimeParameterValues.empty();
+
+      if (!shouldReloadModel && !mRestoredRuntimeParameterValues.empty()) {
+        mPendingRuntimeParameterValues = mRestoredRuntimeParameterValues;
+        mRestoredRuntimeParameterValues.clear();
+        mHasPendingRestoredRuntimeValues = false;
       }
     }
   }

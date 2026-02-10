@@ -89,6 +89,8 @@ class NamParametricPluginAudioProcessor final : public juce::AudioProcessor {
   mutable std::mutex mRuntimeParameterMutex;
   std::unordered_map<std::string, double> mRuntimeParameterValues;
   std::unordered_map<std::string, double> mPendingRuntimeParameterValues;
+  std::unordered_map<std::string, double> mRestoredRuntimeParameterValues;
+  bool mHasPendingRestoredRuntimeValues = false;
 
   std::vector<float> mInputScratch;
   std::vector<float> mOutputScratch;
