@@ -6,6 +6,8 @@
 #include "NamParametricPluginEditor.h"
 
 namespace {
+constexpr const char* kModelPathStateKey = "modelPath";
+
 std::vector<NamParametricPluginAudioProcessor::RuntimeParameterInfo> ConvertRuntimeParameters(
     const std::vector<namparametric::dsp::ModelParameterInfo>& params) {
   std::vector<NamParametricPluginAudioProcessor::RuntimeParameterInfo> out;
@@ -195,6 +197,12 @@ NamParametricPluginAudioProcessor::GetRuntimeParameters() const {
 
 void NamParametricPluginAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {
   auto state = mValueTree.copyState();
+
+  {
+    std::lock_guard<std::mutex> lock(mLoadMutex);
+    state.setProperty(kModelPathStateKey, mModelPath, nullptr);
+  }
+
   std::unique_ptr<juce::XmlElement> xml(state.createXml());
   copyXmlToBinary(*xml, destData);
 }
@@ -208,6 +216,22 @@ void NamParametricPluginAudioProcessor::setStateInformation(const void* data, in
   auto tree = juce::ValueTree::fromXml(*xml);
   if (tree.isValid() && tree.hasType(mValueTree.state.getType())) {
     mValueTree.replaceState(tree);
+
+    const juce::String restoredPath = tree.getProperty(kModelPathStateKey).toString();
+    if (restoredPath.isNotEmpty()) {
+      {
+        std::lock_guard<std::mutex> lock(mLoadMutex);
+        mModelPath = restoredPath;
+      }
+
+      const juce::File modelFile(restoredPath);
+      if (modelFile.existsAsFile() && modelFile.hasReadAccess()) {
+        LoadModelAsync(modelFile);
+      } else {
+        std::lock_guard<std::mutex> lock(mLoadMutex);
+        mStatusText = "Stored model path is unavailable: " + restoredPath;
+      }
+    }
   }
 }
 
