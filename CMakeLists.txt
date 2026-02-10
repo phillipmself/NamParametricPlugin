@@ -15,10 +15,17 @@ add_subdirectory(external/JUCE)
 
 set(TARGET_NAME NamParametricPlugin)
 
+set(AUDIODSPTOOLS_DIR ${CMAKE_CURRENT_LIST_DIR}/external/AudioDSPTools)
 set(NAM_CORE_DIR ${CMAKE_CURRENT_LIST_DIR}/external/nam_core_parametric)
 set(NAM_CORE_NAM_DIR ${NAM_CORE_DIR}/NAM)
 set(NAM_CORE_EIGEN_DIR ${NAM_CORE_DIR}/Dependencies/eigen)
 set(NAM_CORE_NLOHMANN_DIR ${NAM_CORE_DIR}/Dependencies/nlohmann)
+
+if(NOT EXISTS ${AUDIODSPTOOLS_DIR}/dsp/ResamplingContainer/ResamplingContainer.h)
+  message(FATAL_ERROR
+    "Missing AudioDSPTools dependency at ${AUDIODSPTOOLS_DIR}. "
+    "Run: git submodule update --init --recursive")
+endif()
 
 if(NOT EXISTS ${NAM_CORE_EIGEN_DIR}/Eigen/Core)
   message(FATAL_ERROR
@@ -96,6 +103,7 @@ target_include_directories(${TARGET_NAME} PRIVATE
 )
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+  ${AUDIODSPTOOLS_DIR}
   ${NAM_CORE_DIR}
   ${NAM_CORE_NAM_DIR}
   ${NAM_CORE_EIGEN_DIR}

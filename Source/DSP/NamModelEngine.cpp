@@ -1,13 +1,41 @@
 #include "DSP/NamModelEngine.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <filesystem>
+#include <functional>
+#include <numbers>
 #include <stdexcept>
 
+namespace iplug {
+  // AudioDSPTools resampling code assumes this is an iPlug plugin
+inline constexpr double PI = std::numbers::pi_v<double>;
+}
+
+#ifndef DEFAULT_BLOCK_SIZE
+#define DEFAULT_BLOCK_SIZE 1024
+#endif
+
+#include "dsp/ResamplingContainer/ResamplingContainer.h"
 #include "get_dsp.h"
 
 namespace namparametric::dsp {
+
+namespace {
+constexpr double kAssumedUnknownModelSampleRate = 48000.0;
+}  // namespace
+
+struct NamModelEngine::ResamplerState {
+  explicit ResamplerState(double renderingSampleRate)
+      : resampler(renderingSampleRate) {}
+
+  std::function<void(NAM_SAMPLE**, NAM_SAMPLE**, int)> blockProcessFunc;
+  ::dsp::ResamplingContainer<NAM_SAMPLE, 1, 12> resampler;
+};
+
+NamModelEngine::NamModelEngine() = default;
+NamModelEngine::~NamModelEngine() = default;
 
 bool NamModelEngine::LoadModel(const std::string& modelPath, std::string& errorMessage) {
   errorMessage.clear();
@@ -34,6 +62,7 @@ bool NamModelEngine::LoadModel(const std::string& modelPath, std::string& errorM
 
     mModel = std::move(loadedModel);
     mParameterInfos = std::move(loadedParams);
+    mResamplerState.reset();
     return true;
   } catch (const std::exception& ex) {
     errorMessage = ex.what();
@@ -46,7 +75,27 @@ void NamModelEngine::Reset(double sampleRate, int maxBlockSize) {
     return;
   }
 
-  mModel->Reset(sampleRate, maxBlockSize);
+  mHostSampleRate = sampleRate;
+  mMaxExternalBlockSize = maxBlockSize;
+
+  if (!NeedToResample()) {
+    mResamplerState.reset();
+    mModel->Reset(sampleRate, maxBlockSize);
+    return;
+  }
+
+  const double modelSampleRate = GetModelSampleRateForProcessing();
+  mResamplerState = std::make_unique<ResamplerState>(modelSampleRate);
+  mResamplerState->blockProcessFunc = [this](NAM_SAMPLE** input, NAM_SAMPLE** output, int numFrames) {
+    mModel->process(input, output, numFrames);
+  };
+  mResamplerState->resampler.Reset(sampleRate, maxBlockSize);
+
+  // Match NeuralAmpModelerPlugin block-size shaping for the encapsulated model.
+  const double upRatio = sampleRate / modelSampleRate;
+  const int maxEncapsulatedBlockSize =
+      std::max(1, static_cast<int>(std::ceil(static_cast<double>(maxBlockSize) / upRatio)));
+  mModel->ResetAndPrewarm(sampleRate, maxEncapsulatedBlockSize);
 }
 
 void NamModelEngine::Process(float* input, float* output, int numSamples) {
@@ -57,7 +106,20 @@ void NamModelEngine::Process(float* input, float* output, int numSamples) {
 
   NAM_SAMPLE* inputPtrs[1] = {input};
   NAM_SAMPLE* outputPtrs[1] = {output};
-  mModel->process(inputPtrs, outputPtrs, numSamples);
+
+  if (!NeedToResample() || mResamplerState == nullptr) {
+    mModel->process(inputPtrs, outputPtrs, numSamples);
+    return;
+  }
+
+  if (numSamples > mMaxExternalBlockSize) {
+    // Defensive fallback if host violates the configured max block size.
+    mModel->process(inputPtrs, outputPtrs, numSamples);
+    return;
+  }
+
+  mResamplerState->resampler.ProcessBlock(inputPtrs, outputPtrs, numSamples,
+                                          mResamplerState->blockProcessFunc);
 }
 
 double NamModelEngine::GetExpectedSampleRate() const {
@@ -65,7 +127,7 @@ double NamModelEngine::GetExpectedSampleRate() const {
     return -1.0;
   }
 
-  return mModel->GetExpectedSampleRate();
+  return GetModelSampleRateForProcessing();
 }
 
 const std::vector<ModelParameterInfo>& NamModelEngine::GetParameterInfos() const {
@@ -111,6 +173,24 @@ void NamModelEngine::ApplyParameterValues(const std::unordered_map<std::string, 
     std::string ignoredError;
     SetParameterValue(name, value, ignoredError);
   }
+}
+
+double NamModelEngine::GetModelSampleRateForProcessing() const {
+  if (!IsLoaded()) {
+    return -1.0;
+  }
+
+  const double reportedRate = mModel->GetExpectedSampleRate();
+  return reportedRate > 0.0 ? reportedRate : kAssumedUnknownModelSampleRate;
+}
+
+bool NamModelEngine::NeedToResample() const {
+  if (!IsLoaded()) {
+    return false;
+  }
+
+  constexpr double epsilon = 0.5;
+  return std::abs(mHostSampleRate - GetModelSampleRateForProcessing()) > epsilon;
 }
 
 }  // namespace namparametric::dsp

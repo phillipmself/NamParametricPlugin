@@ -5,3 +5,6 @@
 	path = external/nam_core_parametric
 	url = https://github.com/phillipmself/NeuralAmpModelerCore.git
 	branch = feature/parametric-support
+[submodule "external/AudioDSPTools"]
+	path = external/AudioDSPTools
+	url = https://github.com/sdatkinson/AudioDSPTools.git
