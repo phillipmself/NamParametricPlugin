@@ -1,0 +1,6 @@
+[submodule "external/JUCE"]
+	path = external/JUCE
+	url = /Users/phillipself/dev/audio/Poseidon-A2B-500-EQ/.git/modules/external/JUCE
+[submodule "external/nam_core_parametric"]
+	path = external/nam_core_parametric
+	url = /Users/phillipself/dev/audio/nam_core_parametric

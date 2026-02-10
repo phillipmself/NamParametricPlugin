@@ -1,41 +1,16 @@
-# Prerequisites
-*.d
+# Builds
+build/
+build-*/
+**/CMakeFiles/
+**/CMakeCache.txt
+**/cmake_install.cmake
+**/*.ninja
+**/.ninja_*
+compile_commands.json
+.cache/
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
+# macOS junk
+.DS_Store
 
-# Precompiled Headers
-*.gch
-*.pch
-
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-# debug information files
-*.dwo
+# VSCode local noise
+.vscode/ipch/
