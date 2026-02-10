@@ -20,9 +20,10 @@ set(NAM_CORE_NAM_DIR ${NAM_CORE_DIR}/NAM)
 set(NAM_CORE_EIGEN_DIR ${NAM_CORE_DIR}/Dependencies/eigen)
 set(NAM_CORE_NLOHMANN_DIR ${NAM_CORE_DIR}/Dependencies/nlohmann)
 
-# Local fallback for missing nested submodule checkout in external/nam_core_parametric.
 if(NOT EXISTS ${NAM_CORE_EIGEN_DIR}/Eigen/Core)
-  set(NAM_CORE_EIGEN_DIR ${CMAKE_CURRENT_LIST_DIR}/../nam_core_parametric/Dependencies/eigen)
+  message(FATAL_ERROR
+    "Missing Eigen dependency at ${NAM_CORE_EIGEN_DIR}. "
+    "Run: git submodule update --init --recursive")
 endif()
 
 set(NAM_CORE_SOURCES
