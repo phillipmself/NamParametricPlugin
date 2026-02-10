@@ -4,3 +4,4 @@
 [submodule "external/nam_core_parametric"]
 	path = external/nam_core_parametric
 	url = https://github.com/phillipmself/NeuralAmpModelerCore.git
+	branch = feature/parametric-support
