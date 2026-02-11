@@ -46,7 +46,7 @@ set(NAM_CORE_SOURCES
   ${NAM_CORE_NAM_DIR}/wavenet.cpp
 )
 
-add_library(nam_core_runtime STATIC
+add_library(nam_core_runtime OBJECT
   ${NAM_CORE_SOURCES}
 )
 
@@ -98,6 +98,17 @@ target_sources(${TARGET_NAME} PRIVATE
   Source/NamParametricPluginProcessor.h
 )
 
+# Important: put NAM object files directly into final wrapper binaries,
+# not only the JUCE shared static archive, so static factory registrars
+# are not dropped by archive dead-stripping.
+foreach(wrapper_target IN ITEMS ${TARGET_NAME}_VST3 ${TARGET_NAME}_Standalone)
+  if(TARGET ${wrapper_target})
+    target_sources(${wrapper_target} PRIVATE
+      $<TARGET_OBJECTS:nam_core_runtime>
+    )
+  endif()
+endforeach()
+
 target_include_directories(${TARGET_NAME} PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}/Source
 )
@@ -121,7 +132,6 @@ target_compile_definitions(${TARGET_NAME} PRIVATE
 
 target_link_libraries(${TARGET_NAME}
   PRIVATE
-    nam_core_runtime
     juce::juce_audio_utils
     juce::juce_dsp
   PUBLIC
