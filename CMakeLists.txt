@@ -74,6 +74,13 @@ else()
   target_compile_options(nam_core_runtime PRIVATE -w)
 endif()
 
+# Keep third-party DSP runtime performant even in Debug builds to avoid audio callback overruns.
+if(MSVC)
+  target_compile_options(nam_core_runtime PRIVATE $<$<CONFIG:Debug>:/O2>)
+else()
+  target_compile_options(nam_core_runtime PRIVATE $<$<CONFIG:Debug>:-O3>)
+endif()
+
 juce_add_plugin(${TARGET_NAME}
   COMPANY_NAME "phillipmself"
   PRODUCT_NAME "NAM Parametric Plugin"

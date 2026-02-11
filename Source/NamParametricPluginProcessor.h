@@ -97,6 +97,8 @@ class NamParametricPluginAudioProcessor final : public juce::AudioProcessor {
 
   std::atomic<double> mCurrentSampleRate{48000.0};
   std::atomic<int> mCurrentBlockSize{512};
+  std::atomic<float>* mInputGainParam = nullptr;
+  std::atomic<float>* mOutputGainParam = nullptr;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NamParametricPluginAudioProcessor)
 };

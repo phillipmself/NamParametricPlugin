@@ -11,6 +11,7 @@ constexpr const char* kRuntimeParamsStateType = "RUNTIME_PARAMS";
 constexpr const char* kRuntimeParamStateType = "PARAM";
 constexpr const char* kRuntimeParamNameStateKey = "name";
 constexpr const char* kRuntimeParamValueStateKey = "value";
+constexpr int kMinimumModelResetBlockSize = 2048;
 
 std::vector<NamParametricPluginAudioProcessor::RuntimeParameterInfo> ConvertRuntimeParameters(
     const std::vector<namparametric::dsp::ModelParameterInfo>& params) {
@@ -74,7 +75,10 @@ NamParametricPluginAudioProcessor::NamParametricPluginAudioProcessor()
     : juce::AudioProcessor(BusesProperties()
                                .withInput("Input", juce::AudioChannelSet::mono(), true)
                                .withOutput("Output", juce::AudioChannelSet::mono(), true)),
-      mValueTree(*this, nullptr, "PARAMS", CreateParameterLayout()) {}
+      mValueTree(*this, nullptr, "PARAMS", CreateParameterLayout()) {
+  mInputGainParam = mValueTree.getRawParameterValue(ParamIDs::inputGainDb);
+  mOutputGainParam = mValueTree.getRawParameterValue(ParamIDs::outputGainDb);
+}
 
 void NamParametricPluginAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock) {
   mCurrentSampleRate.store(sampleRate, std::memory_order_release);
@@ -97,10 +101,8 @@ bool NamParametricPluginAudioProcessor::isBusesLayoutSupported(const BusesLayout
 
 void NamParametricPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                                                      juce::MidiBuffer& midiMessages) {
+  juce::ScopedNoDenormals noDenormals;
   juce::ignoreUnused(midiMessages);
-
-  TryApplyStagedModel();
-  ApplyPendingRuntimeParameterChanges();
 
   if (buffer.getNumChannels() == 0) {
     return;
@@ -111,13 +113,21 @@ void NamParametricPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     return;
   }
 
+  const int observedMaxBlockSize = mCurrentBlockSize.load(std::memory_order_acquire);
+  if (numSamples > observedMaxBlockSize) {
+    mCurrentBlockSize.store(numSamples, std::memory_order_release);
+  }
+
+  TryApplyStagedModel();
+  ApplyPendingRuntimeParameterChanges();
+
   if (mInputScratch.size() < static_cast<size_t>(numSamples)) {
     mInputScratch.resize(static_cast<size_t>(numSamples), 0.0f);
     mOutputScratch.resize(static_cast<size_t>(numSamples), 0.0f);
   }
 
-  const float inputGainDb = mValueTree.getRawParameterValue(ParamIDs::inputGainDb)->load();
-  const float outputGainDb = mValueTree.getRawParameterValue(ParamIDs::outputGainDb)->load();
+  const float inputGainDb = mInputGainParam != nullptr ? mInputGainParam->load() : 0.0f;
+  const float outputGainDb = mOutputGainParam != nullptr ? mOutputGainParam->load() : 0.0f;
   const float inputGain = juce::Decibels::decibelsToGain(inputGainDb);
   const float outputGain = juce::Decibels::decibelsToGain(outputGainDb);
 
@@ -158,7 +168,12 @@ NamParametricPluginAudioProcessor::CreateParameterLayout() {
 }
 
 void NamParametricPluginAudioProcessor::TryApplyStagedModel() {
-  std::lock_guard<std::mutex> lock(mLoadMutex);
+  std::unique_lock<std::mutex> lock(mLoadMutex, std::try_to_lock);
+  if (!lock.owns_lock()) {
+    // Never block the audio thread waiting on UI/loader state.
+    return;
+  }
+
   if (!mLoadFuture.has_value()) {
     return;
   }
@@ -210,13 +225,14 @@ void NamParametricPluginAudioProcessor::LoadModelAsync(const juce::File& modelFi
   const juce::String fullPath = modelFile.getFullPathName();
   const std::string modelPath = fullPath.toStdString();
   const double sampleRate = mCurrentSampleRate.load(std::memory_order_acquire);
-  const int blockSize = mCurrentBlockSize.load(std::memory_order_acquire);
+  const int observedBlockSize = mCurrentBlockSize.load(std::memory_order_acquire);
+  const int resetBlockSize = std::max(observedBlockSize, kMinimumModelResetBlockSize);
 
   std::lock_guard<std::mutex> lock(mLoadMutex);
   mStatusText = "Loading model: " + modelFile.getFileName();
 
   mLoadFuture.emplace(
-      std::async(std::launch::async, [modelPath, fullPath, sampleRate, blockSize]() {
+      std::async(std::launch::async, [modelPath, fullPath, sampleRate, resetBlockSize]() {
         AsyncLoadResult result;
         auto stagedModel = std::make_unique<namparametric::dsp::NamModelEngine>();
 
@@ -227,7 +243,7 @@ void NamParametricPluginAudioProcessor::LoadModelAsync(const juce::File& modelFi
           return result;
         }
 
-        stagedModel->Reset(sampleRate, blockSize);
+        stagedModel->Reset(sampleRate, resetBlockSize);
 
         result.success = true;
         result.loadedPath = fullPath;
@@ -296,7 +312,12 @@ void NamParametricPluginAudioProcessor::ApplyPendingRuntimeParameterChanges() {
 
   std::unordered_map<std::string, double> pending;
   {
-    std::lock_guard<std::mutex> lock(mRuntimeParameterMutex);
+    std::unique_lock<std::mutex> lock(mRuntimeParameterMutex, std::try_to_lock);
+    if (!lock.owns_lock()) {
+      // UI thread may be updating values; skip this block rather than blocking.
+      return;
+    }
+
     if (mPendingRuntimeParameterValues.empty()) {
       return;
     }
