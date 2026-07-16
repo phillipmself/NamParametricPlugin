@@ -1,21 +1,23 @@
 #pragma once
 
 #include <memory>
-#include <optional>
+#include <span>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "dsp.h"
+#include "parametric_control.h"
 
 namespace namparametric::dsp {
 
 struct ModelParameterInfo {
   std::string name;
-  bool isBoolean = false;
-  double defaultValue = 0.0;
-  std::optional<double> minValue;
-  std::optional<double> maxValue;
+  float minValue = 0.0f;
+  float maxValue = 0.0f;
+  float defaultValue = 0.0f;
+  std::vector<std::string> enumNames;
+
+  [[nodiscard]] bool IsSwitch() const { return !enumNames.empty(); }
 };
 
 class NamModelEngine {
@@ -31,10 +33,8 @@ class NamModelEngine {
   [[nodiscard]] bool IsLoaded() const { return mModel != nullptr; }
   [[nodiscard]] double GetExpectedSampleRate() const;
   [[nodiscard]] const std::vector<ModelParameterInfo>& GetParameterInfos() const;
-
-  bool SetParameterValue(const std::string& name, double value, std::string& errorMessage);
-  [[nodiscard]] std::unordered_map<std::string, double> GetParameterValuesByName() const;
-  void ApplyParameterValues(const std::unordered_map<std::string, double>& values);
+  [[nodiscard]] const std::vector<float>& GetParameterValues() const;
+  bool SetParameterValues(std::span<const float> values) noexcept;
 
  private:
   struct ResamplerState;
@@ -42,7 +42,9 @@ class NamModelEngine {
   [[nodiscard]] bool NeedToResample() const;
 
   std::unique_ptr<nam::DSP> mModel;
+  nam::IParametricControl* mParametricControl = nullptr;
   std::vector<ModelParameterInfo> mParameterInfos;
+  std::vector<float> mParameterValues;
   double mHostSampleRate = 48000.0;
   int mMaxExternalBlockSize = 0;
   std::unique_ptr<ResamplerState> mResamplerState;

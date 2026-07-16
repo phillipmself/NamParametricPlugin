@@ -1,6 +1,7 @@
 #include "NamParametricPluginEditor.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace {
 constexpr int kControlRowHeight = 34;
@@ -23,18 +24,10 @@ bool NamParametricPluginAudioProcessorEditor::RuntimeParameterListsEqual(
     const auto& a = lhs[i];
     const auto& b = rhs[i];
 
-    if (a.name != b.name || a.isBoolean != b.isBoolean ||
+    if (a.name != b.name || a.enumNames != b.enumNames ||
         !juce::approximatelyEqual(a.defaultValue, b.defaultValue) ||
-        a.minValue.has_value() != b.minValue.has_value() ||
-        a.maxValue.has_value() != b.maxValue.has_value()) {
-      return false;
-    }
-
-    if (a.minValue.has_value() && !juce::approximatelyEqual(*a.minValue, *b.minValue)) {
-      return false;
-    }
-
-    if (a.maxValue.has_value() && !juce::approximatelyEqual(*a.maxValue, *b.maxValue)) {
+        !juce::approximatelyEqual(a.minValue, b.minValue) ||
+        !juce::approximatelyEqual(a.maxValue, b.maxValue)) {
       return false;
     }
   }
@@ -43,16 +36,16 @@ bool NamParametricPluginAudioProcessorEditor::RuntimeParameterListsEqual(
 }
 
 double NamParametricPluginAudioProcessorEditor::GetInitialRuntimeValue(
-    const RuntimeParameterInfo& param) const {
-  const auto storedValue =
-      mProcessor.GetRuntimeParameterValue(param.name).value_or(param.defaultValue);
+    const size_t index, const RuntimeParameterInfo& param) const {
+  const auto storedValue = mProcessor.GetRuntimeParameterValue(index).value_or(param.defaultValue);
 
-  if (param.isBoolean) {
-    return storedValue >= 0.5 ? 1.0 : 0.0;
+  if (param.IsSwitch()) {
+    return juce::jlimit(0.0, static_cast<double>(param.enumNames.size() - 1),
+                        std::round(storedValue));
   }
 
-  double minValue = param.minValue.value_or(param.defaultValue - 1.0);
-  double maxValue = param.maxValue.value_or(param.defaultValue + 1.0);
+  double minValue = param.minValue;
+  double maxValue = param.maxValue;
   if (maxValue < minValue) {
     std::swap(minValue, maxValue);
   }
@@ -68,30 +61,35 @@ void NamParametricPluginAudioProcessorEditor::RebuildRuntimeParameterControls(
   mRuntimeRows.clear();
   mRuntimeContent.removeAllChildren();
 
-  for (const auto& param : params) {
+  for (size_t index = 0; index < params.size(); ++index) {
+    const auto& param = params[index];
     RuntimeControlRow row;
     row.name = param.name;
-    row.isBoolean = param.isBoolean;
+    row.isSwitch = param.IsSwitch();
 
     row.label = std::make_unique<juce::Label>();
     row.label->setText(param.name, juce::dontSendNotification);
     row.label->setJustificationType(juce::Justification::centredLeft);
     mRuntimeContent.addAndMakeVisible(*row.label);
 
-    if (param.isBoolean) {
-      row.toggle = std::make_unique<juce::ToggleButton>("Enabled");
-      row.toggle->setToggleState(GetInitialRuntimeValue(param) >= 0.5, juce::dontSendNotification);
+    if (param.IsSwitch()) {
+      row.choice = std::make_unique<juce::ComboBox>();
+      for (size_t choiceIndex = 0; choiceIndex < param.enumNames.size(); ++choiceIndex) {
+        row.choice->addItem(param.enumNames[choiceIndex], static_cast<int>(choiceIndex + 1));
+      }
+      row.choice->setSelectedId(static_cast<int>(GetInitialRuntimeValue(index, param)) + 1,
+                                juce::dontSendNotification);
 
-      auto* toggle = row.toggle.get();
-      const juce::String name = param.name;
-      toggle->onClick = [this, toggle, name]() {
-        mProcessor.SetRuntimeParameterValue(name, toggle->getToggleState() ? 1.0 : 0.0);
+      auto* choice = row.choice.get();
+      choice->onChange = [this, choice, index]() {
+        mProcessor.SetRuntimeParameterValue(index,
+                                            static_cast<double>(choice->getSelectedId() - 1));
       };
 
-      mRuntimeContent.addAndMakeVisible(*row.toggle);
+      mRuntimeContent.addAndMakeVisible(*row.choice);
     } else {
-      double minValue = param.minValue.value_or(param.defaultValue - 1.0);
-      double maxValue = param.maxValue.value_or(param.defaultValue + 1.0);
+      double minValue = param.minValue;
+      double maxValue = param.maxValue;
       if (maxValue < minValue) {
         std::swap(minValue, maxValue);
       }
@@ -104,12 +102,11 @@ void NamParametricPluginAudioProcessorEditor::RebuildRuntimeParameterControls(
       row.slider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 85, 20);
       const double interval = std::max(0.0001, (maxValue - minValue) / 1000.0);
       row.slider->setRange(minValue, maxValue, interval);
-      row.slider->setValue(GetInitialRuntimeValue(param), juce::dontSendNotification);
+      row.slider->setValue(GetInitialRuntimeValue(index, param), juce::dontSendNotification);
 
       auto* slider = row.slider.get();
-      const juce::String name = param.name;
-      slider->onValueChange = [this, slider, name]() {
-        mProcessor.SetRuntimeParameterValue(name, slider->getValue());
+      slider->onValueChange = [this, slider, index]() {
+        mProcessor.SetRuntimeParameterValue(index, slider->getValue());
       };
 
       mRuntimeContent.addAndMakeVisible(*row.slider);
@@ -127,6 +124,26 @@ void NamParametricPluginAudioProcessorEditor::UpdateRuntimeParameterControls() {
   const auto params = mProcessor.GetRuntimeParameters();
   if (!RuntimeParameterListsEqual(mLastRuntimeParameters, params)) {
     RebuildRuntimeParameterControls(params);
+  }
+  UpdateRuntimeParameterValues();
+}
+
+void NamParametricPluginAudioProcessorEditor::UpdateRuntimeParameterValues() {
+  for (size_t index = 0; index < mRuntimeRows.size(); ++index) {
+    const auto value = mProcessor.GetRuntimeParameterValue(index);
+    if (!value.has_value()) {
+      continue;
+    }
+
+    auto& row = mRuntimeRows[index];
+    if (row.isSwitch && row.choice != nullptr) {
+      const int selectedId = static_cast<int>(std::round(*value)) + 1;
+      if (row.choice->getSelectedId() != selectedId) {
+        row.choice->setSelectedId(selectedId, juce::dontSendNotification);
+      }
+    } else if (row.slider != nullptr && !juce::approximatelyEqual(row.slider->getValue(), *value)) {
+      row.slider->setValue(*value, juce::dontSendNotification);
+    }
   }
 }
 
@@ -245,9 +262,9 @@ void NamParametricPluginAudioProcessorEditor::resized() {
       }
       rowBounds.removeFromLeft(8);
 
-      if (row.isBoolean && row.toggle != nullptr) {
-        row.toggle->setBounds(rowBounds.removeFromLeft(140));
-      } else if (!row.isBoolean && row.slider != nullptr) {
+      if (row.isSwitch && row.choice != nullptr) {
+        row.choice->setBounds(rowBounds.removeFromLeft(220));
+      } else if (!row.isSwitch && row.slider != nullptr) {
         row.slider->setBounds(rowBounds);
       }
 

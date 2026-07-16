@@ -3,8 +3,8 @@
 	url = https://github.com/juce-framework/JUCE.git
 [submodule "external/nam_core_parametric"]
 	path = external/nam_core_parametric
-	url = https://github.com/phillipmself/NeuralAmpModelerCore.git
-	branch = feature/parametric-support
+	url = https://github.com/phillipmself/NeuralAmpModelerCoreParametric.git
+	branch = feature/parametric-main
 [submodule "external/AudioDSPTools"]
 	path = external/AudioDSPTools
 	url = https://github.com/sdatkinson/AudioDSPTools.git

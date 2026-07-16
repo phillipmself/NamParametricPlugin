@@ -19,18 +19,19 @@ class NamParametricPluginAudioProcessorEditor final : public juce::AudioProcesso
 
   struct RuntimeControlRow {
     juce::String name;
-    bool isBoolean = false;
+    bool isSwitch = false;
     std::unique_ptr<juce::Label> label;
     std::unique_ptr<juce::Slider> slider;
-    std::unique_ptr<juce::ToggleButton> toggle;
+    std::unique_ptr<juce::ComboBox> choice;
   };
 
   static void InitializeGainSlider(juce::Slider& slider);
   static bool RuntimeParameterListsEqual(const std::vector<RuntimeParameterInfo>& lhs,
                                          const std::vector<RuntimeParameterInfo>& rhs);
   void UpdateRuntimeParameterControls();
+  void UpdateRuntimeParameterValues();
   void RebuildRuntimeParameterControls(const std::vector<RuntimeParameterInfo>& params);
-  double GetInitialRuntimeValue(const RuntimeParameterInfo& param) const;
+  double GetInitialRuntimeValue(size_t index, const RuntimeParameterInfo& param) const;
   void timerCallback() override;
 
   NamParametricPluginAudioProcessor& mProcessor;

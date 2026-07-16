@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.22)
 
 project(NamParametricPlugin VERSION 0.1.0)
 
+include(CTest)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -33,17 +35,9 @@ if(NOT EXISTS ${NAM_CORE_EIGEN_DIR}/Eigen/Core)
     "Run: git submodule update --init --recursive")
 endif()
 
-set(NAM_CORE_SOURCES
-  ${NAM_CORE_NAM_DIR}/activations.cpp
-  ${NAM_CORE_NAM_DIR}/conv1d.cpp
-  ${NAM_CORE_NAM_DIR}/convnet.cpp
-  ${NAM_CORE_NAM_DIR}/dsp.cpp
-  ${NAM_CORE_NAM_DIR}/get_dsp.cpp
-  ${NAM_CORE_NAM_DIR}/lstm.cpp
-  ${NAM_CORE_NAM_DIR}/parametric.cpp
-  ${NAM_CORE_NAM_DIR}/ring_buffer.cpp
-  ${NAM_CORE_NAM_DIR}/util.cpp
-  ${NAM_CORE_NAM_DIR}/wavenet.cpp
+file(GLOB NAM_CORE_SOURCES CONFIGURE_DEPENDS
+  ${NAM_CORE_NAM_DIR}/*.cpp
+  ${NAM_CORE_NAM_DIR}/*/*.cpp
 )
 
 add_library(nam_core_runtime OBJECT
@@ -66,6 +60,7 @@ target_compile_definitions(nam_core_runtime PRIVATE
   EIGEN_MPL2_ONLY=1
   EIGEN_NO_DEBUG=1
   NAM_SAMPLE_FLOAT=1
+  NAM_ENABLE_A2_FAST=1
 )
 
 if(MSVC)
@@ -135,6 +130,7 @@ target_compile_definitions(${TARGET_NAME} PRIVATE
   EIGEN_MPL2_ONLY=1
   EIGEN_NO_DEBUG=1
   NAM_SAMPLE_FLOAT=1
+  NAM_ENABLE_A2_FAST=1
 )
 
 target_link_libraries(${TARGET_NAME}
@@ -146,3 +142,40 @@ target_link_libraries(${TARGET_NAME}
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags
 )
+
+option(NAM_PARAMETRIC_BUILD_TESTS "Build NAM model smoke tests" ON)
+if(NAM_PARAMETRIC_BUILD_TESTS)
+  add_executable(nam_model_smoke_test
+    Tests/NamModelEngineSmokeTest.cpp
+    Source/DSP/NamModelEngine.cpp
+    Source/DSP/NamModelEngine.h
+    $<TARGET_OBJECTS:nam_core_runtime>
+  )
+
+  target_include_directories(nam_model_smoke_test PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/Source
+  )
+
+  target_include_directories(nam_model_smoke_test SYSTEM PRIVATE
+    ${AUDIODSPTOOLS_DIR}
+    ${NAM_CORE_DIR}
+    ${NAM_CORE_NAM_DIR}
+    ${NAM_CORE_EIGEN_DIR}
+    ${NAM_CORE_NLOHMANN_DIR}
+  )
+
+  target_compile_definitions(nam_model_smoke_test PRIVATE
+    EIGEN_MPL2_ONLY=1
+    EIGEN_NO_DEBUG=1
+    NAM_SAMPLE_FLOAT=1
+    NAM_ENABLE_A2_FAST=1
+  )
+
+  set(NAM_CONCAT_TEST_MODEL "" CACHE FILEPATH "ConcatWaveNet model used by CTest")
+  set(NAM_HYPER_TEST_MODEL "" CACHE FILEPATH "HyperWaveNet model used by CTest")
+  if(BUILD_TESTING AND EXISTS "${NAM_CONCAT_TEST_MODEL}" AND EXISTS "${NAM_HYPER_TEST_MODEL}")
+    add_test(NAME nam_model_smoke
+      COMMAND nam_model_smoke_test "${NAM_CONCAT_TEST_MODEL}" "${NAM_HYPER_TEST_MODEL}"
+    )
+  endif()
+endif()

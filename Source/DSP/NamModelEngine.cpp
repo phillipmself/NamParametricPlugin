@@ -45,22 +45,41 @@ bool NamModelEngine::LoadModel(const std::string& modelPath, std::string& errorM
       errorMessage = "Model loader returned null model.";
       return false;
     }
+    if (loadedModel->NumInputChannels() != 1 || loadedModel->NumOutputChannels() != 1) {
+      errorMessage = "Model must have exactly one input and one output channel.";
+      return false;
+    }
 
+    auto* loadedParametricControl = dynamic_cast<nam::IParametricControl*>(loadedModel.get());
     std::vector<ModelParameterInfo> loadedParams;
-    loadedParams.reserve(loadedModel->GetParameterCount());
+    std::vector<float> loadedValues;
 
-    for (const auto& descriptor : loadedModel->GetParameterDescriptors()) {
-      ModelParameterInfo info;
-      info.name = descriptor.name;
-      info.isBoolean = descriptor.type == nam::ParameterType::Boolean;
-      info.defaultValue = descriptor.default_value;
-      info.minValue = descriptor.min_value;
-      info.maxValue = descriptor.max_value;
-      loadedParams.push_back(info);
+    if (loadedParametricControl != nullptr) {
+      const auto& specs = loadedParametricControl->GetParamSpecs();
+      const auto values = loadedParametricControl->GetParams();
+      if (values.size() != specs.size()) {
+        throw std::runtime_error("Parametric model returned inconsistent parameter metadata.");
+      }
+
+      loadedParams.reserve(specs.size());
+      loadedValues.assign(values.begin(), values.end());
+      for (const auto& spec : specs) {
+        ModelParameterInfo info;
+        info.name = spec.name;
+        info.minValue = spec.min;
+        info.maxValue = spec.max;
+        info.defaultValue = spec.defaultValue;
+        if (spec.type == "switch") {
+          info.enumNames = spec.enum_names;
+        }
+        loadedParams.push_back(std::move(info));
+      }
     }
 
     mModel = std::move(loadedModel);
+    mParametricControl = loadedParametricControl;
     mParameterInfos = std::move(loadedParams);
+    mParameterValues = std::move(loadedValues);
     mResamplerState.reset();
     return true;
   } catch (const std::exception& ex) {
@@ -95,12 +114,16 @@ void NamModelEngine::Reset(double sampleRate, int maxBlockSize) {
   const double upRatio = sampleRate / modelSampleRate;
   const int maxEncapsulatedBlockSize =
       std::max(1, static_cast<int>(std::ceil(static_cast<double>(maxBlockSize) / upRatio)));
-  mModel->ResetAndPrewarm(sampleRate, maxEncapsulatedBlockSize);
+  mModel->Reset(sampleRate, maxEncapsulatedBlockSize);
 }
 
 void NamModelEngine::Process(float* input, float* output, int numSamples) {
-  if (!IsLoaded()) {
-    std::memcpy(output, input, sizeof(float) * static_cast<size_t>(numSamples));
+  if (numSamples <= 0) {
+    return;
+  }
+
+  if (!IsLoaded() || mMaxExternalBlockSize <= 0 || numSamples > mMaxExternalBlockSize) {
+    std::copy_n(input, numSamples, output);
     return;
   }
 
@@ -108,12 +131,6 @@ void NamModelEngine::Process(float* input, float* output, int numSamples) {
   NAM_SAMPLE* outputPtrs[1] = {output};
 
   if (!NeedToResample() || mResamplerState == nullptr) {
-    mModel->process(inputPtrs, outputPtrs, numSamples);
-    return;
-  }
-
-  if (numSamples > mMaxExternalBlockSize) {
-    // Defensive fallback if host violates the configured max block size.
     mModel->process(inputPtrs, outputPtrs, numSamples);
     return;
   }
@@ -134,44 +151,18 @@ const std::vector<ModelParameterInfo>& NamModelEngine::GetParameterInfos() const
   return mParameterInfos;
 }
 
-bool NamModelEngine::SetParameterValue(const std::string& name, double value,
-                                       std::string& errorMessage) {
-  if (!IsLoaded()) {
-    errorMessage = "No model loaded.";
+const std::vector<float>& NamModelEngine::GetParameterValues() const { return mParameterValues; }
+
+bool NamModelEngine::SetParameterValues(const std::span<const float> values) noexcept {
+  if (mParametricControl == nullptr || values.size() != mParameterValues.size()) {
     return false;
   }
-
   try {
-    mModel->SetParameter(name, value);
+    mParametricControl->SetParams(values);
+    std::copy(values.begin(), values.end(), mParameterValues.begin());
     return true;
-  } catch (const std::exception& ex) {
-    errorMessage = ex.what();
+  } catch (...) {
     return false;
-  }
-}
-
-std::unordered_map<std::string, double> NamModelEngine::GetParameterValuesByName() const {
-  std::unordered_map<std::string, double> values;
-  if (!IsLoaded()) {
-    return values;
-  }
-
-  values.reserve(mParameterInfos.size());
-  for (const auto& param : mParameterInfos) {
-    values[param.name] = mModel->GetParameter(param.name);
-  }
-
-  return values;
-}
-
-void NamModelEngine::ApplyParameterValues(const std::unordered_map<std::string, double>& values) {
-  if (!IsLoaded()) {
-    return;
-  }
-
-  for (const auto& [name, value] : values) {
-    std::string ignoredError;
-    SetParameterValue(name, value, ignoredError);
   }
 }
 
