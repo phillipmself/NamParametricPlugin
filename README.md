@@ -15,7 +15,7 @@ including parametric NAM models via `nam_core_parametric`.
 - Plugin state persists:
   - APVTS state
   - `modelPath` (absolute path)
-  - dynamic model parameter values by name
+  - dynamic model parameter values by ordered index and name
 - Sample-rate mismatch between DAW and model is handled via AudioDSPTools resampling.
 
 ## Repository Layout
@@ -56,6 +56,25 @@ cmake --preset mac-release
 cmake --build --preset mac-release -j 8
 ```
 
+## Model Smoke Test
+
+The smoke-test executable loads one `ConcatWaveNet` and one `HyperWaveNet` model, renders at a
+mismatched host sample rate with a non-power-of-two block size, applies alternate full parameter
+vectors, and checks for finite, non-silent, parameter-dependent output:
+
+```bash
+./build/mac-debug/nam_model_smoke_test /path/to/concat.nam /path/to/hyper.nam
+```
+
+To register the same check with CTest, configure with model paths and then run CTest:
+
+```bash
+cmake --preset mac-debug \
+  -DNAM_CONCAT_TEST_MODEL=/path/to/concat.nam \
+  -DNAM_HYPER_TEST_MODEL=/path/to/hyper.nam
+ctest --test-dir build/mac-debug --output-on-failure
+```
+
 ## Run (Standalone)
 
 After a debug build, launch:
@@ -86,7 +105,7 @@ Run these checks before merging major changes:
 2. Plugin loads with no model and processes audio safely (pass-through + gains).
 3. Gains are bounded to `-12/+12 dB` and audible as expected.
 4. Non-parametric model loads; dynamic section shows no controls.
-5. Parametric model loads; sliders/checkboxes appear and audibly affect output.
+5. Parametric model loads; continuous sliders and switch menus appear and audibly affect output.
 6. Model sample-rate mismatch still processes audio without failure (resampling active).
 7. Save/reload session restores gains, `modelPath`, and dynamic values by name.
 8. Missing/broken stored `modelPath` does not crash and plugin remains usable.
