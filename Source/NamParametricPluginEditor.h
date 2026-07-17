@@ -3,12 +3,14 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 
 #include "NamParametricPluginProcessor.h"
+#include "UI/NamLookAndFeel.h"
+#include "UI/TopBarComponent.h"
 
 class NamParametricPluginAudioProcessorEditor final : public juce::AudioProcessorEditor,
                                                       private juce::Timer {
  public:
   explicit NamParametricPluginAudioProcessorEditor(NamParametricPluginAudioProcessor&);
-  ~NamParametricPluginAudioProcessorEditor() override = default;
+  ~NamParametricPluginAudioProcessorEditor() override;
 
   void paint(juce::Graphics&) override;
   void resized() override;
@@ -25,7 +27,6 @@ class NamParametricPluginAudioProcessorEditor final : public juce::AudioProcesso
     std::unique_ptr<juce::ComboBox> choice;
   };
 
-  static void InitializeGainSlider(juce::Slider& slider);
   static bool RuntimeParameterListsEqual(const std::vector<RuntimeParameterInfo>& lhs,
                                          const std::vector<RuntimeParameterInfo>& rhs);
   void UpdateRuntimeParameterControls();
@@ -35,15 +36,12 @@ class NamParametricPluginAudioProcessorEditor final : public juce::AudioProcesso
   void timerCallback() override;
 
   NamParametricPluginAudioProcessor& mProcessor;
-  juce::Label mTitle;
+  NamLookAndFeel mLookAndFeel;
+  TopBarComponent mTopBar;
   juce::TextButton mLoadModelButton;
   juce::Label mModelPathLabel;
   juce::Label mStatusLabel;
 
-  juce::Slider mInputGain;
-  juce::Slider mOutputGain;
-  juce::Label mInputLabel;
-  juce::Label mOutputLabel;
   juce::Label mRuntimeSectionLabel;
   juce::Viewport mRuntimeViewport;
   juce::Component mRuntimeContent;

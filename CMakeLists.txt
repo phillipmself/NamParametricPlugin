@@ -98,6 +98,11 @@ target_sources(${TARGET_NAME} PRIVATE
   Source/NamParametricPluginEditor.h
   Source/NamParametricPluginProcessor.cpp
   Source/NamParametricPluginProcessor.h
+  Source/UI/NamColours.h
+  Source/UI/NamLookAndFeel.cpp
+  Source/UI/NamLookAndFeel.h
+  Source/UI/TopBarComponent.cpp
+  Source/UI/TopBarComponent.h
 )
 
 # Important: put NAM object files directly into final wrapper binaries,

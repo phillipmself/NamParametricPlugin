@@ -3,16 +3,14 @@
 #include <algorithm>
 #include <cmath>
 
+#include "UI/NamColours.h"
+
 namespace {
 constexpr int kControlRowHeight = 34;
 constexpr int kRuntimeLabelWidth = 180;
 constexpr int kRuntimeSectionHeight = 24;
+constexpr int kTopBarHeight = 96;
 }  // namespace
-
-void NamParametricPluginAudioProcessorEditor::InitializeGainSlider(juce::Slider& slider) {
-  slider.setSliderStyle(juce::Slider::LinearHorizontal);
-  slider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 70, 20);
-}
 
 bool NamParametricPluginAudioProcessorEditor::RuntimeParameterListsEqual(
     const std::vector<RuntimeParameterInfo>& lhs, const std::vector<RuntimeParameterInfo>& rhs) {
@@ -150,9 +148,9 @@ void NamParametricPluginAudioProcessorEditor::UpdateRuntimeParameterValues() {
 NamParametricPluginAudioProcessorEditor::NamParametricPluginAudioProcessorEditor(
     NamParametricPluginAudioProcessor& pluginProcessor)
     : juce::AudioProcessorEditor(&pluginProcessor), mProcessor(pluginProcessor) {
-  mTitle.setText("NAM Parametric Plugin", juce::dontSendNotification);
-  mTitle.setJustificationType(juce::Justification::centred);
-  addAndMakeVisible(mTitle);
+  setLookAndFeel(&mLookAndFeel);
+
+  addAndMakeVisible(mTopBar);
 
   mLoadModelButton.setButtonText("Load .nam Model");
   mLoadModelButton.onClick = [this]() {
@@ -180,16 +178,6 @@ NamParametricPluginAudioProcessorEditor::NamParametricPluginAudioProcessorEditor
   mStatusLabel.setJustificationType(juce::Justification::centredLeft);
   addAndMakeVisible(mStatusLabel);
 
-  mInputLabel.setText("Input Gain", juce::dontSendNotification);
-  mOutputLabel.setText("Output Gain", juce::dontSendNotification);
-  addAndMakeVisible(mInputLabel);
-  addAndMakeVisible(mOutputLabel);
-
-  InitializeGainSlider(mInputGain);
-  InitializeGainSlider(mOutputGain);
-  addAndMakeVisible(mInputGain);
-  addAndMakeVisible(mOutputGain);
-
   mRuntimeSectionLabel.setText("Model Parameters", juce::dontSendNotification);
   mRuntimeSectionLabel.setJustificationType(juce::Justification::centredLeft);
   addAndMakeVisible(mRuntimeSectionLabel);
@@ -203,25 +191,30 @@ NamParametricPluginAudioProcessorEditor::NamParametricPluginAudioProcessorEditor
   mRuntimeContent.addAndMakeVisible(mRuntimeEmptyLabel);
 
   mInputAttachment = std::make_unique<SliderAttachment>(
-      mProcessor.mValueTree, NamParametricPluginAudioProcessor::ParamIDs::inputGainDb, mInputGain);
+      mProcessor.mValueTree, NamParametricPluginAudioProcessor::ParamIDs::inputGainDb,
+      mTopBar.getInputSlider());
   mOutputAttachment = std::make_unique<SliderAttachment>(
       mProcessor.mValueTree, NamParametricPluginAudioProcessor::ParamIDs::outputGainDb,
-      mOutputGain);
+      mTopBar.getOutputSlider());
 
   UpdateRuntimeParameterControls();
   startTimerHz(12);
   setSize(560, 460);
 }
 
+NamParametricPluginAudioProcessorEditor::~NamParametricPluginAudioProcessorEditor() {
+  setLookAndFeel(nullptr);
+}
+
 void NamParametricPluginAudioProcessorEditor::paint(juce::Graphics& g) {
-  g.fillAll(juce::Colours::black);
-  g.setColour(juce::Colours::white);
-  g.setFont(17.0f);
+  g.fillAll(nam::ui::Colours::background);
 }
 
 void NamParametricPluginAudioProcessorEditor::resized() {
-  auto bounds = getLocalBounds().reduced(12);
-  mTitle.setBounds(bounds.removeFromTop(36));
+  auto bounds = getLocalBounds();
+  mTopBar.setBounds(bounds.removeFromTop(kTopBarHeight));
+
+  bounds = bounds.reduced(12);
 
   auto modelRow = bounds.removeFromTop(34);
   mLoadModelButton.setBounds(modelRow.removeFromLeft(130));
@@ -229,16 +222,6 @@ void NamParametricPluginAudioProcessorEditor::resized() {
   mModelPathLabel.setBounds(modelRow);
 
   mStatusLabel.setBounds(bounds.removeFromTop(30));
-  bounds.removeFromTop(8);
-
-  auto row1 = bounds.removeFromTop(36);
-  mInputLabel.setBounds(row1.removeFromLeft(110));
-  mInputGain.setBounds(row1);
-
-  auto row2 = bounds.removeFromTop(36);
-  mOutputLabel.setBounds(row2.removeFromLeft(110));
-  mOutputGain.setBounds(row2);
-
   bounds.removeFromTop(8);
   mRuntimeSectionLabel.setBounds(bounds.removeFromTop(kRuntimeSectionHeight));
   bounds.removeFromTop(4);
