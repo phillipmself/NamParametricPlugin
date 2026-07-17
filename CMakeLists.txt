@@ -98,9 +98,15 @@ target_sources(${TARGET_NAME} PRIVATE
   Source/NamParametricPluginEditor.h
   Source/NamParametricPluginProcessor.cpp
   Source/NamParametricPluginProcessor.h
+  Source/UI/ModelBarComponent.cpp
+  Source/UI/ModelBarComponent.h
+  Source/UI/ModelParametersPanel.cpp
+  Source/UI/ModelParametersPanel.h
   Source/UI/NamColours.h
   Source/UI/NamLookAndFeel.cpp
   Source/UI/NamLookAndFeel.h
+  Source/UI/SegmentedSwitch.cpp
+  Source/UI/SegmentedSwitch.h
   Source/UI/TopBarComponent.cpp
   Source/UI/TopBarComponent.h
 )

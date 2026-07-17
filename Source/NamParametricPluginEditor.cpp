@@ -6,10 +6,8 @@
 #include "UI/NamColours.h"
 
 namespace {
-constexpr int kControlRowHeight = 34;
-constexpr int kRuntimeLabelWidth = 180;
-constexpr int kRuntimeSectionHeight = 24;
 constexpr int kTopBarHeight = 96;
+constexpr int kModelBarHeight = 56;
 }  // namespace
 
 bool NamParametricPluginAudioProcessorEditor::RuntimeParameterListsEqual(
@@ -56,66 +54,14 @@ double NamParametricPluginAudioProcessorEditor::GetInitialRuntimeValue(
 
 void NamParametricPluginAudioProcessorEditor::RebuildRuntimeParameterControls(
     const std::vector<RuntimeParameterInfo>& params) {
-  mRuntimeRows.clear();
-  mRuntimeContent.removeAllChildren();
-
+  std::vector<double> initialValues;
+  initialValues.reserve(params.size());
   for (size_t index = 0; index < params.size(); ++index) {
-    const auto& param = params[index];
-    RuntimeControlRow row;
-    row.name = param.name;
-    row.isSwitch = param.IsSwitch();
-
-    row.label = std::make_unique<juce::Label>();
-    row.label->setText(param.name, juce::dontSendNotification);
-    row.label->setJustificationType(juce::Justification::centredLeft);
-    mRuntimeContent.addAndMakeVisible(*row.label);
-
-    if (param.IsSwitch()) {
-      row.choice = std::make_unique<juce::ComboBox>();
-      for (size_t choiceIndex = 0; choiceIndex < param.enumNames.size(); ++choiceIndex) {
-        row.choice->addItem(param.enumNames[choiceIndex], static_cast<int>(choiceIndex + 1));
-      }
-      row.choice->setSelectedId(static_cast<int>(GetInitialRuntimeValue(index, param)) + 1,
-                                juce::dontSendNotification);
-
-      auto* choice = row.choice.get();
-      choice->onChange = [this, choice, index]() {
-        mProcessor.SetRuntimeParameterValue(index,
-                                            static_cast<double>(choice->getSelectedId() - 1));
-      };
-
-      mRuntimeContent.addAndMakeVisible(*row.choice);
-    } else {
-      double minValue = param.minValue;
-      double maxValue = param.maxValue;
-      if (maxValue < minValue) {
-        std::swap(minValue, maxValue);
-      }
-      if (juce::approximatelyEqual(minValue, maxValue)) {
-        maxValue = minValue + 1.0;
-      }
-
-      row.slider = std::make_unique<juce::Slider>();
-      row.slider->setSliderStyle(juce::Slider::LinearHorizontal);
-      row.slider->setTextBoxStyle(juce::Slider::TextBoxRight, false, 85, 20);
-      const double interval = std::max(0.0001, (maxValue - minValue) / 1000.0);
-      row.slider->setRange(minValue, maxValue, interval);
-      row.slider->setValue(GetInitialRuntimeValue(index, param), juce::dontSendNotification);
-
-      auto* slider = row.slider.get();
-      slider->onValueChange = [this, slider, index]() {
-        mProcessor.SetRuntimeParameterValue(index, slider->getValue());
-      };
-
-      mRuntimeContent.addAndMakeVisible(*row.slider);
-    }
-
-    mRuntimeRows.push_back(std::move(row));
+    initialValues.push_back(GetInitialRuntimeValue(index, params[index]));
   }
 
-  mRuntimeContent.addAndMakeVisible(mRuntimeEmptyLabel);
+  mParametersPanel.RebuildControls(params, initialValues);
   mLastRuntimeParameters = params;
-  resized();
 }
 
 void NamParametricPluginAudioProcessorEditor::UpdateRuntimeParameterControls() {
@@ -127,22 +73,34 @@ void NamParametricPluginAudioProcessorEditor::UpdateRuntimeParameterControls() {
 }
 
 void NamParametricPluginAudioProcessorEditor::UpdateRuntimeParameterValues() {
-  for (size_t index = 0; index < mRuntimeRows.size(); ++index) {
+  for (size_t index = 0; index < mParametersPanel.GetControlCount(); ++index) {
     const auto value = mProcessor.GetRuntimeParameterValue(index);
-    if (!value.has_value()) {
-      continue;
-    }
-
-    auto& row = mRuntimeRows[index];
-    if (row.isSwitch && row.choice != nullptr) {
-      const int selectedId = static_cast<int>(std::round(*value)) + 1;
-      if (row.choice->getSelectedId() != selectedId) {
-        row.choice->setSelectedId(selectedId, juce::dontSendNotification);
-      }
-    } else if (row.slider != nullptr && !juce::approximatelyEqual(row.slider->getValue(), *value)) {
-      row.slider->setValue(*value, juce::dontSendNotification);
+    if (value.has_value()) {
+      mParametersPanel.SetValue(index, *value);
     }
   }
+}
+
+void NamParametricPluginAudioProcessorEditor::UpdateModelBarInfo() {
+  const bool loaded = mProcessor.HasModelLoaded();
+  const auto text =
+      loaded ? juce::File(mProcessor.GetModelPath()).getFileName() : mProcessor.GetStatusText();
+  mModelBar.SetModelInfo(loaded, text);
+}
+
+void NamParametricPluginAudioProcessorEditor::ShowModelChooser() {
+  mModelChooser = std::make_unique<juce::FileChooser>("Select a NAM model", juce::File(), "*.nam");
+
+  const int chooserFlags =
+      juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
+
+  mModelChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& chooser) {
+    const juce::File selectedFile = chooser.getResult();
+    if (selectedFile.existsAsFile()) {
+      mProcessor.LoadModelAsync(selectedFile);
+    }
+    mModelChooser.reset();
+  });
 }
 
 NamParametricPluginAudioProcessorEditor::NamParametricPluginAudioProcessorEditor(
@@ -151,44 +109,14 @@ NamParametricPluginAudioProcessorEditor::NamParametricPluginAudioProcessorEditor
   setLookAndFeel(&mLookAndFeel);
 
   addAndMakeVisible(mTopBar);
+  addAndMakeVisible(mParametersPanel);
+  addAndMakeVisible(mModelBar);
 
-  mLoadModelButton.setButtonText("Load .nam Model");
-  mLoadModelButton.onClick = [this]() {
-    mModelChooser =
-        std::make_unique<juce::FileChooser>("Select a NAM model", juce::File(), "*.nam");
+  mModelBar.getSelectButton().onClick = [this]() { ShowModelChooser(); };
 
-    const int chooserFlags =
-        juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
-
-    mModelChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& chooser) {
-      const juce::File selectedFile = chooser.getResult();
-      if (selectedFile.existsAsFile()) {
-        mProcessor.LoadModelAsync(selectedFile);
-      }
-      mModelChooser.reset();
-    });
+  mParametersPanel.onValueChanged = [this](size_t index, double value) {
+    mProcessor.SetRuntimeParameterValue(index, value);
   };
-  addAndMakeVisible(mLoadModelButton);
-
-  mModelPathLabel.setText("Model: (none)", juce::dontSendNotification);
-  mModelPathLabel.setJustificationType(juce::Justification::centredLeft);
-  addAndMakeVisible(mModelPathLabel);
-
-  mStatusLabel.setText(mProcessor.GetStatusText(), juce::dontSendNotification);
-  mStatusLabel.setJustificationType(juce::Justification::centredLeft);
-  addAndMakeVisible(mStatusLabel);
-
-  mRuntimeSectionLabel.setText("Model Parameters", juce::dontSendNotification);
-  mRuntimeSectionLabel.setJustificationType(juce::Justification::centredLeft);
-  addAndMakeVisible(mRuntimeSectionLabel);
-
-  mRuntimeViewport.setViewedComponent(&mRuntimeContent, false);
-  mRuntimeViewport.setScrollBarsShown(true, false);
-  addAndMakeVisible(mRuntimeViewport);
-
-  mRuntimeEmptyLabel.setText("No dynamic model parameters.", juce::dontSendNotification);
-  mRuntimeEmptyLabel.setJustificationType(juce::Justification::centredLeft);
-  mRuntimeContent.addAndMakeVisible(mRuntimeEmptyLabel);
 
   mInputAttachment = std::make_unique<SliderAttachment>(
       mProcessor.mValueTree, NamParametricPluginAudioProcessor::ParamIDs::inputGainDb,
@@ -198,8 +126,9 @@ NamParametricPluginAudioProcessorEditor::NamParametricPluginAudioProcessorEditor
       mTopBar.getOutputSlider());
 
   UpdateRuntimeParameterControls();
+  UpdateModelBarInfo();
   startTimerHz(12);
-  setSize(560, 460);
+  setSize(640, 460);
 }
 
 NamParametricPluginAudioProcessorEditor::~NamParametricPluginAudioProcessorEditor() {
@@ -213,59 +142,11 @@ void NamParametricPluginAudioProcessorEditor::paint(juce::Graphics& g) {
 void NamParametricPluginAudioProcessorEditor::resized() {
   auto bounds = getLocalBounds();
   mTopBar.setBounds(bounds.removeFromTop(kTopBarHeight));
-
-  bounds = bounds.reduced(12);
-
-  auto modelRow = bounds.removeFromTop(34);
-  mLoadModelButton.setBounds(modelRow.removeFromLeft(130));
-  modelRow.removeFromLeft(8);
-  mModelPathLabel.setBounds(modelRow);
-
-  mStatusLabel.setBounds(bounds.removeFromTop(30));
-  bounds.removeFromTop(8);
-  mRuntimeSectionLabel.setBounds(bounds.removeFromTop(kRuntimeSectionHeight));
-  bounds.removeFromTop(4);
-  mRuntimeViewport.setBounds(bounds);
-
-  const int contentWidth =
-      juce::jmax(1, mRuntimeViewport.getWidth() - mRuntimeViewport.getScrollBarThickness());
-  int y = 0;
-
-  if (mRuntimeRows.empty()) {
-    mRuntimeEmptyLabel.setVisible(true);
-    mRuntimeEmptyLabel.setBounds(0, 0, contentWidth, kControlRowHeight);
-    y = kControlRowHeight;
-  } else {
-    mRuntimeEmptyLabel.setVisible(false);
-
-    for (auto& row : mRuntimeRows) {
-      auto rowBounds = juce::Rectangle<int>(0, y, contentWidth, kControlRowHeight);
-      if (row.label != nullptr) {
-        row.label->setBounds(rowBounds.removeFromLeft(kRuntimeLabelWidth));
-      }
-      rowBounds.removeFromLeft(8);
-
-      if (row.isSwitch && row.choice != nullptr) {
-        row.choice->setBounds(rowBounds.removeFromLeft(220));
-      } else if (!row.isSwitch && row.slider != nullptr) {
-        row.slider->setBounds(rowBounds);
-      }
-
-      y += kControlRowHeight;
-    }
-  }
-
-  mRuntimeContent.setSize(contentWidth, juce::jmax(y, mRuntimeViewport.getHeight()));
+  mModelBar.setBounds(bounds.removeFromBottom(kModelBarHeight));
+  mParametersPanel.setBounds(bounds);
 }
 
 void NamParametricPluginAudioProcessorEditor::timerCallback() {
-  const auto modelPath = mProcessor.GetModelPath();
-  if (modelPath.isEmpty()) {
-    mModelPathLabel.setText("Model: (none)", juce::dontSendNotification);
-  } else {
-    mModelPathLabel.setText("Model: " + modelPath, juce::dontSendNotification);
-  }
-
-  mStatusLabel.setText(mProcessor.GetStatusText(), juce::dontSendNotification);
+  UpdateModelBarInfo();
   UpdateRuntimeParameterControls();
 }

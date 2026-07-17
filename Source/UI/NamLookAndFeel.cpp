@@ -76,3 +76,24 @@ void NamLookAndFeel::drawRotarySlider(juce::Graphics& g, const int x, const int 
   g.setColour(accent);
   g.drawLine(juce::Line<float>(innerPoint, outerPoint), trackThickness * 0.55f);
 }
+
+void NamLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& button,
+                                          const juce::Colour& backgroundColour,
+                                          const bool shouldDrawButtonAsHighlighted,
+                                          const bool shouldDrawButtonAsDown) {
+  const auto bounds = button.getLocalBounds().toFloat().reduced(0.5f);
+  const float radius = bounds.getHeight() / 2.0f;
+
+  auto fillColour = backgroundColour;
+  if (shouldDrawButtonAsDown) {
+    fillColour = fillColour.darker(0.2f);
+  } else if (shouldDrawButtonAsHighlighted) {
+    fillColour = fillColour.brighter(0.08f);
+  }
+
+  g.setColour(fillColour);
+  g.fillRoundedRectangle(bounds, radius);
+
+  g.setColour(shouldDrawButtonAsHighlighted ? accent : hairline);
+  g.drawRoundedRectangle(bounds, radius, 1.0f);
+}
