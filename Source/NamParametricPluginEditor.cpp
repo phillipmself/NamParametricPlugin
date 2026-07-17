@@ -6,8 +6,12 @@
 #include "UI/NamColours.h"
 
 namespace {
-constexpr int kTopBarHeight = 96;
-constexpr int kModelBarHeight = 56;
+constexpr int kTopBarHeight = 110;
+constexpr int kModelBarHeight = 64;
+constexpr int kDefaultWidth = 640;
+constexpr int kMinWidth = 520;
+constexpr int kMaxWidth = 1400;
+constexpr int kMaxHeight = 900;
 }  // namespace
 
 bool NamParametricPluginAudioProcessorEditor::RuntimeParameterListsEqual(
@@ -62,6 +66,7 @@ void NamParametricPluginAudioProcessorEditor::RebuildRuntimeParameterControls(
 
   mParametersPanel.RebuildControls(params, initialValues);
   mLastRuntimeParameters = params;
+  UpdateResizeLimits();
 }
 
 void NamParametricPluginAudioProcessorEditor::UpdateRuntimeParameterControls() {
@@ -86,6 +91,11 @@ void NamParametricPluginAudioProcessorEditor::UpdateModelBarInfo() {
   const auto text =
       loaded ? juce::File(mProcessor.GetModelPath()).getFileName() : mProcessor.GetStatusText();
   mModelBar.SetModelInfo(loaded, text);
+}
+
+void NamParametricPluginAudioProcessorEditor::UpdateResizeLimits() {
+  const int minHeight = kTopBarHeight + mParametersPanel.GetMinimumContentHeight() + kModelBarHeight;
+  setResizeLimits(kMinWidth, minHeight, kMaxWidth, kMaxHeight);
 }
 
 void NamParametricPluginAudioProcessorEditor::ShowModelChooser() {
@@ -128,7 +138,12 @@ NamParametricPluginAudioProcessorEditor::NamParametricPluginAudioProcessorEditor
   UpdateRuntimeParameterControls();
   UpdateModelBarInfo();
   startTimerHz(12);
-  setSize(640, 460);
+
+  setResizable(true, true);
+  UpdateResizeLimits();
+  const int initialHeight =
+      kTopBarHeight + mParametersPanel.GetMinimumContentHeight() + kModelBarHeight + 30;
+  setSize(kDefaultWidth, initialHeight);
 }
 
 NamParametricPluginAudioProcessorEditor::~NamParametricPluginAudioProcessorEditor() {

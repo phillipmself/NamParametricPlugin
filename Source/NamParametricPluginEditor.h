@@ -29,6 +29,7 @@ class NamParametricPluginAudioProcessorEditor final : public juce::AudioProcesso
   double GetInitialRuntimeValue(size_t index, const RuntimeParameterInfo& param) const;
   void UpdateModelBarInfo();
   void ShowModelChooser();
+  void UpdateResizeLimits();
   void timerCallback() override;
 
   NamParametricPluginAudioProcessor& mProcessor;

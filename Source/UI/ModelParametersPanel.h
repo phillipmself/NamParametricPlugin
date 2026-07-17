@@ -21,6 +21,7 @@ class ModelParametersPanel final : public juce::Component {
                        const std::vector<double>& initialValues);
   void SetValue(size_t index, double value);
   [[nodiscard]] size_t GetControlCount() const { return mControls.size(); }
+  [[nodiscard]] int GetMinimumContentHeight() const;
 
   std::function<void(size_t, double)> onValueChanged;
 

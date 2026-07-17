@@ -3,8 +3,8 @@
 #include "NamColours.h"
 
 namespace {
-constexpr int kSelectButtonWidth = 128;
-constexpr int kDotDiameter = 6;
+constexpr int kSelectButtonWidth = 150;
+constexpr int kDotDiameter = 8;
 }  // namespace
 
 ModelBarComponent::ModelBarComponent() {
@@ -12,7 +12,7 @@ ModelBarComponent::ModelBarComponent() {
   addAndMakeVisible(mSelectButton);
 
   mNameLabel.setJustificationType(juce::Justification::centredLeft);
-  mNameLabel.setFont(juce::Font(juce::FontOptions(12.5f)));
+  mNameLabel.setFont(juce::Font(juce::FontOptions(15.0f)));
   mNameLabel.setColour(juce::Label::textColourId, nam::ui::Colours::textSecondary);
   addAndMakeVisible(mNameLabel);
 

@@ -27,6 +27,9 @@ NamLookAndFeel::NamLookAndFeel() {
   setColour(juce::Slider::textBoxOutlineColourId, hairline);
   setColour(juce::Slider::trackColourId, track);
   setColour(juce::Slider::thumbColourId, accent);
+  setColour(juce::ScrollBar::backgroundColourId, background);
+  setColour(juce::ScrollBar::trackColourId, track);
+  setColour(juce::ScrollBar::thumbColourId, track);
 }
 
 void NamLookAndFeel::drawRotarySlider(juce::Graphics& g, const int x, const int y,
@@ -96,4 +99,8 @@ void NamLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& butto
 
   g.setColour(shouldDrawButtonAsHighlighted ? accent : hairline);
   g.drawRoundedRectangle(bounds, radius, 1.0f);
+}
+
+juce::Font NamLookAndFeel::getTextButtonFont(juce::TextButton&, const int buttonHeight) {
+  return juce::Font(juce::FontOptions(juce::jmin(17.0f, static_cast<float>(buttonHeight) * 0.5f)));
 }

@@ -3,24 +3,24 @@
 #include "NamColours.h"
 
 namespace {
-constexpr int kKnobColumnWidth = 96;
-constexpr int kKnobSize = 48;
-constexpr int kTagHeight = 14;
-constexpr int kValueHeight = 14;
-constexpr int kColumnGap = 2;
-constexpr int kColumnVerticalPadding = 8;
+constexpr int kKnobColumnWidth = 108;
+constexpr int kKnobSize = 56;
+constexpr int kTagHeight = 18;
+constexpr int kValueHeight = 18;
+constexpr int kColumnGap = 3;
+constexpr int kColumnVerticalPadding = 6;
 }  // namespace
 
 void TopBarComponent::ConfigureTag(juce::Label& label, const juce::String& text) {
   label.setText(text, juce::dontSendNotification);
   label.setJustificationType(juce::Justification::centred);
-  label.setFont(juce::Font(juce::FontOptions(11.0f, juce::Font::bold)));
+  label.setFont(juce::Font(juce::FontOptions(14.0f, juce::Font::bold)));
   label.setColour(juce::Label::textColourId, nam::ui::Colours::textSecondary);
 }
 
 void TopBarComponent::ConfigureValueLabel(juce::Label& label) {
   label.setJustificationType(juce::Justification::centred);
-  label.setFont(juce::Font(juce::FontOptions(11.5f)));
+  label.setFont(juce::Font(juce::FontOptions(14.5f)));
   label.setColour(juce::Label::textColourId, nam::ui::Colours::textTertiary);
 }
 
@@ -64,7 +64,7 @@ void TopBarComponent::paint(juce::Graphics& g) {
 
   juce::AttributedString title;
   title.setJustification(juce::Justification::centred);
-  const auto titleFont = juce::Font(juce::FontOptions(19.0f, juce::Font::bold));
+  const auto titleFont = juce::Font(juce::FontOptions(32.0f, juce::Font::bold));
   title.append("Parametric ", titleFont, nam::ui::Colours::textPrimary);
   title.append("NAM", titleFont, nam::ui::Colours::accent);
   title.draw(g, mTitleBounds);

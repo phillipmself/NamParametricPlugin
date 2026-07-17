@@ -2,22 +2,24 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 #include "NamColours.h"
 
 namespace {
-constexpr int kEyebrowHeight = 20;
-constexpr int kKnobCellWidth = 76;
-constexpr int kSwitchCellMinWidth = 70;
-constexpr int kCellHeight = 90;
-constexpr int kColumnGap = 20;
-constexpr int kRowGap = 12;
-constexpr int kSidePadding = 20;
-constexpr int kTopPadding = 6;
-constexpr int kBottomPadding = 12;
-constexpr int kKnobSize = 52;
-constexpr int kLabelHeight = 14;
-constexpr int kSwitchHeight = 26;
+constexpr int kEyebrowHeight = 24;
+constexpr int kKnobCellWidth = 90;
+constexpr int kSwitchCellMinWidth = 84;
+constexpr int kCellHeight = 108;
+constexpr int kColumnGap = 26;
+constexpr int kRowGap = 18;
+constexpr int kSidePadding = 24;
+constexpr int kTopPadding = 10;
+constexpr int kBottomPadding = 16;
+constexpr int kKnobSize = 62;
+constexpr int kLabelHeight = 18;
+constexpr int kSwitchHeight = 34;
+constexpr int kEmptyStateHeight = 60;
 
 juce::String FormatParamValue(const double value) { return juce::String(value, 2); }
 
@@ -26,7 +28,7 @@ juce::String FormatParamValue(const double value) { return juce::String(value, 2
 ModelParametersPanel::ModelParametersPanel() {
   mEyebrow.setText("Model Parameters", juce::dontSendNotification);
   mEyebrow.setJustificationType(juce::Justification::centred);
-  mEyebrow.setFont(juce::Font(juce::FontOptions(10.5f, juce::Font::bold)));
+  mEyebrow.setFont(juce::Font(juce::FontOptions(13.0f, juce::Font::bold)));
   mEyebrow.setColour(juce::Label::textColourId, nam::ui::Colours::textTertiary);
   addAndMakeVisible(mEyebrow);
 
@@ -36,6 +38,7 @@ ModelParametersPanel::ModelParametersPanel() {
 
   mEmptyLabel.setText("No dynamic parameters for this model.", juce::dontSendNotification);
   mEmptyLabel.setJustificationType(juce::Justification::centred);
+  mEmptyLabel.setFont(juce::Font(juce::FontOptions(14.0f)));
   mEmptyLabel.setColour(juce::Label::textColourId, nam::ui::Colours::textTertiary);
   mContent.addAndMakeVisible(mEmptyLabel);
 }
@@ -56,7 +59,7 @@ void ModelParametersPanel::RebuildControls(const std::vector<RuntimeParameterInf
     control.nameLabel = std::make_unique<juce::Label>();
     control.nameLabel->setText(param.name, juce::dontSendNotification);
     control.nameLabel->setJustificationType(juce::Justification::centred);
-    control.nameLabel->setFont(juce::Font(juce::FontOptions(11.5f, juce::Font::bold)));
+    control.nameLabel->setFont(juce::Font(juce::FontOptions(14.5f, juce::Font::bold)));
     control.nameLabel->setColour(juce::Label::textColourId, nam::ui::Colours::textSecondary);
     mContent.addAndMakeVisible(*control.nameLabel);
 
@@ -97,7 +100,7 @@ void ModelParametersPanel::RebuildControls(const std::vector<RuntimeParameterInf
       control.valueLabel = std::make_unique<juce::Label>();
       control.valueLabel->setText(FormatParamValue(initialValue), juce::dontSendNotification);
       control.valueLabel->setJustificationType(juce::Justification::centred);
-      control.valueLabel->setFont(juce::Font(juce::FontOptions(11.0f)));
+      control.valueLabel->setFont(juce::Font(juce::FontOptions(13.5f)));
       control.valueLabel->setColour(juce::Label::textColourId, nam::ui::Colours::textTertiary);
 
       auto* knob = control.knob.get();
@@ -136,6 +139,11 @@ void ModelParametersPanel::SetValue(const size_t index, const double value) {
   }
 }
 
+int ModelParametersPanel::GetMinimumContentHeight() const {
+  return kEyebrowHeight + (mControls.empty() ? kEmptyStateHeight
+                                             : kTopPadding + kCellHeight + kBottomPadding);
+}
+
 void ModelParametersPanel::resized() {
   auto bounds = getLocalBounds();
   mEyebrow.setBounds(bounds.removeFromTop(kEyebrowHeight));
@@ -149,38 +157,70 @@ void ModelParametersPanel::LayoutContent() {
 
   if (mControls.empty()) {
     mEmptyLabel.setVisible(true);
-    mEmptyLabel.setBounds(0, 0, contentWidth, kCellHeight / 2);
-    mContent.setSize(contentWidth, juce::jmax(kCellHeight / 2, mViewport.getHeight()));
+    mEmptyLabel.setBounds(0, 0, contentWidth, kEmptyStateHeight);
+    mContent.setSize(contentWidth, juce::jmax(kEmptyStateHeight, mViewport.getHeight()));
     return;
   }
 
   mEmptyLabel.setVisible(false);
 
-  int x = kSidePadding;
-  int y = kTopPadding;
+  const int maxRowWidth = juce::jmax(1, contentWidth - 2 * kSidePadding);
+
+  // First pass: greedily pack controls into rows, each row only knowing its total width.
+  std::vector<std::vector<std::pair<ParamControl*, int>>> rows;
+  std::vector<std::pair<ParamControl*, int>> currentRow;
+  int currentRowWidth = 0;
 
   for (auto& control : mControls) {
     const int cellWidth = control.isSwitch
                               ? juce::jmax(kSwitchCellMinWidth, control.switchControl->getPreferredWidth())
                               : kKnobCellWidth;
+    const int neededWidth = currentRow.empty() ? cellWidth : currentRowWidth + kColumnGap + cellWidth;
 
-    if (x + cellWidth + kSidePadding > contentWidth && x > kSidePadding) {
-      x = kSidePadding;
-      y += kCellHeight + kRowGap;
+    if (!currentRow.empty() && neededWidth > maxRowWidth) {
+      rows.push_back(currentRow);
+      currentRow.clear();
+      currentRowWidth = 0;
     }
 
-    control.nameLabel->setBounds(x, y, cellWidth, kLabelHeight);
-
-    if (control.isSwitch) {
-      control.switchControl->setBounds(x, y + kLabelHeight + 8, cellWidth, kSwitchHeight);
-    } else {
-      const int knobX = x + (cellWidth - kKnobSize) / 2;
-      control.knob->setBounds(knobX, y + kLabelHeight + 4, kKnobSize, kKnobSize);
-      control.valueLabel->setBounds(x, y + kLabelHeight + 4 + kKnobSize + 4, cellWidth, kLabelHeight);
+    if (!currentRow.empty()) {
+      currentRowWidth += kColumnGap;
     }
-
-    x += cellWidth + kColumnGap;
+    currentRowWidth += cellWidth;
+    currentRow.emplace_back(&control, cellWidth);
+  }
+  if (!currentRow.empty()) {
+    rows.push_back(currentRow);
   }
 
-  mContent.setSize(contentWidth, juce::jmax(y + kCellHeight + kBottomPadding, mViewport.getHeight()));
+  // Second pass: each row is centered independently within the available width.
+  int y = kTopPadding;
+  for (const auto& row : rows) {
+    int rowWidth = -kColumnGap;
+    for (const auto& [control, cellWidth] : row) {
+      rowWidth += cellWidth + kColumnGap;
+    }
+
+    int x = (contentWidth - rowWidth) / 2;
+    for (const auto& [control, cellWidth] : row) {
+      control->nameLabel->setBounds(x, y, cellWidth, kLabelHeight);
+
+      if (control->isSwitch) {
+        const int switchWidth = juce::jmin(cellWidth, control->switchControl->getPreferredWidth());
+        control->switchControl->setBounds(x + (cellWidth - switchWidth) / 2, y + kLabelHeight + 10,
+                                          switchWidth, kSwitchHeight);
+      } else {
+        const int knobX = x + (cellWidth - kKnobSize) / 2;
+        control->knob->setBounds(knobX, y + kLabelHeight + 6, kKnobSize, kKnobSize);
+        control->valueLabel->setBounds(x, y + kLabelHeight + 6 + kKnobSize + 4, cellWidth, kLabelHeight);
+      }
+
+      x += cellWidth + kColumnGap;
+    }
+
+    y += kCellHeight + kRowGap;
+  }
+
+  mContent.setSize(contentWidth,
+                   juce::jmax(y - kRowGap + kBottomPadding, mViewport.getHeight()));
 }

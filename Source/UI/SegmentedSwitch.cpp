@@ -3,8 +3,8 @@
 #include "NamColours.h"
 
 namespace {
-constexpr int kSegmentMinWidth = 44;
-constexpr int kHorizontalPadding = 12;
+constexpr int kSegmentMinWidth = 56;
+constexpr int kHorizontalPadding = 18;
 }  // namespace
 
 void SegmentedSwitch::setOptions(const juce::StringArray& options) {
@@ -30,7 +30,7 @@ void SegmentedSwitch::setSelectedIndex(const int index, const juce::Notification
 int SegmentedSwitch::getPreferredWidth() const {
   int width = 4;
   for (const auto& option : mOptions) {
-    width += juce::jmax(kSegmentMinWidth, option.length() * 7 + kHorizontalPadding);
+    width += juce::jmax(kSegmentMinWidth, option.length() * 9 + kHorizontalPadding);
   }
   return width;
 }
@@ -52,7 +52,7 @@ void SegmentedSwitch::paint(juce::Graphics& g) {
   const float segmentWidth = inner.getWidth() / static_cast<float>(mOptions.size());
   const float innerRadius = inner.getHeight() / 2.0f;
 
-  g.setFont(juce::Font(juce::FontOptions(10.5f, juce::Font::bold)));
+  g.setFont(juce::Font(juce::FontOptions(13.0f, juce::Font::bold)));
 
   for (int i = 0; i < mOptions.size(); ++i) {
     const auto segment =
