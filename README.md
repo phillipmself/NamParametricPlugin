@@ -3,6 +3,27 @@
 JUCE-based `VST3 + Standalone` plugin for loading and running Neural Amp Modeler (`.nam`) models,
 including parametric NAM models via `nam_core_parametric`.
 
+## Download (macOS)
+
+Prebuilt macOS builds (universal: `arm64` + `x86_64`) are published on the
+[Releases page](https://github.com/phillipmself/NamParametricPlugin/releases).
+
+1. Download `NAM-Parametric-Plugin-<version>-macOS-VST3.zip` (for your DAW) and/or
+   `NAM-Parametric-Plugin-<version>-macOS-Standalone.zip` (standalone app).
+2. Unzip, then move the `.vst3` into `~/Library/Audio/Plug-Ins/VST3/` (or the `.app` wherever you like).
+3. **These builds are unsigned/unnotarized**, so macOS Gatekeeper will refuse to open them the
+   first time. To allow it:
+   - Right-click (or Control-click) the `.app`/`.vst3` and choose **Open**, then confirm in the
+     dialog that appears, **or**
+   - Run in Terminal:
+     ```bash
+     xattr -cr "/path/to/NAM Parametric Plugin.app"
+     xattr -cr ~/Library/Audio/Plug-Ins/VST3/"NAM Parametric Plugin.vst3"
+     ```
+   You only need to do this once per download.
+
+Windows builds are not available yet. To build from source instead, see below.
+
 ## Scope (v1)
 
 - Mono input/output processing path.
