@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "DSP/IrEngine.h"
 #include "DSP/NamModelEngine.h"
 
 class NamParametricPluginAudioProcessor final : public juce::AudioProcessor, private juce::Timer {
@@ -20,6 +21,7 @@ class NamParametricPluginAudioProcessor final : public juce::AudioProcessor, pri
   struct ParamIDs {
     static constexpr const char* inputGainDb = "inputGainDb";
     static constexpr const char* outputGainDb = "outputGainDb";
+    static constexpr const char* irEnabled = "irEnabled";
   };
 
   struct RuntimeParameterInfo {
@@ -66,6 +68,12 @@ class NamParametricPluginAudioProcessor final : public juce::AudioProcessor, pri
   std::vector<RuntimeParameterInfo> GetRuntimeParameters() const;
   void SetRuntimeParameterValue(size_t index, double value);
   std::optional<double> GetRuntimeParameterValue(size_t index) const;
+
+  void LoadIrAsync(const juce::File& irFile);
+  void ClearIr();
+  juce::String GetIrStatusText() const;
+  juce::String GetIrPath() const;
+  bool HasIrLoaded() const;
 
   juce::AudioProcessorValueTreeState mValueTree;
 
@@ -119,6 +127,19 @@ class NamParametricPluginAudioProcessor final : public juce::AudioProcessor, pri
     uint64_t requestId = 0;
   };
 
+  struct IrLoadRequest {
+    juce::File irFile;
+    uint64_t requestId = 0;
+  };
+
+  struct IrAsyncLoadResult {
+    bool success = false;
+    uint64_t requestId = 0;
+    std::unique_ptr<namparametric::dsp::IrEngine> irEngine;
+    juce::String message;
+    juce::String loadedPath;
+  };
+
   struct HostProcessingConfig {
     std::atomic<uint64_t> generation{0};
     std::atomic<double> sampleRate{48000.0};
@@ -134,6 +155,11 @@ class NamParametricPluginAudioProcessor final : public juce::AudioProcessor, pri
   void StageModelClear();
   void TryPromoteStagedModel();
   void ApplyPendingRuntimeParameterChanges();
+  void StartIrLoad(const juce::File& irFile);
+  void BeginIrLoadLocked(IrLoadRequest request);
+  void CollectCompletedIrLoad();
+  void StageIrClear();
+  void TryPromoteStagedIr();
   void timerCallback() override;
 
   mutable std::mutex mLoadMutex;
@@ -155,11 +181,24 @@ class NamParametricPluginAudioProcessor final : public juce::AudioProcessor, pri
 
   std::vector<float> mInputScratch;
   std::vector<float> mOutputScratch;
+  std::vector<float> mIrOutputScratch;
+
+  mutable std::mutex mIrLoadMutex;
+  std::optional<std::future<IrAsyncLoadResult>> mIrLoadFuture;
+  std::optional<IrLoadRequest> mQueuedIrLoadRequest;
+  uint64_t mLatestIrLoadRequestId = 0;
+  bool mIrClearStaged = false;
+  std::unique_ptr<namparametric::dsp::IrEngine> mActiveIr;
+  std::unique_ptr<namparametric::dsp::IrEngine> mStagedIr;
+  std::unique_ptr<namparametric::dsp::IrEngine> mRetiredIr;
+  juce::String mIrStatusText = "No IR loaded";
+  juce::String mIrPath;
 
   std::shared_ptr<HostProcessingConfig> mHostProcessingConfig =
       std::make_shared<HostProcessingConfig>();
   std::atomic<float>* mInputGainParam = nullptr;
   std::atomic<float>* mOutputGainParam = nullptr;
+  std::atomic<float>* mIrEnabledParam = nullptr;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NamParametricPluginAudioProcessor)
 };

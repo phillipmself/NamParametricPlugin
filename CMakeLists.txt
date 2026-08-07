@@ -76,6 +76,41 @@ else()
   target_compile_options(nam_core_runtime PRIVATE $<$<CONFIG:Debug>:-O3>)
 endif()
 
+add_library(audio_dsp_tools_runtime OBJECT
+  ${AUDIODSPTOOLS_DIR}/dsp/dsp.cpp
+  ${AUDIODSPTOOLS_DIR}/dsp/wav.cpp
+  ${AUDIODSPTOOLS_DIR}/dsp/ImpulseResponse.cpp
+)
+
+set_target_properties(audio_dsp_tools_runtime PROPERTIES
+  POSITION_INDEPENDENT_CODE ON
+)
+
+target_include_directories(audio_dsp_tools_runtime
+  SYSTEM PRIVATE
+    ${AUDIODSPTOOLS_DIR}
+    ${AUDIODSPTOOLS_DIR}/dsp
+    ${NAM_CORE_EIGEN_DIR}
+)
+
+target_compile_definitions(audio_dsp_tools_runtime PRIVATE
+  EIGEN_MPL2_ONLY=1
+  EIGEN_NO_DEBUG=1
+)
+
+if(MSVC)
+  target_compile_options(audio_dsp_tools_runtime PRIVATE /W0)
+else()
+  target_compile_options(audio_dsp_tools_runtime PRIVATE -w)
+endif()
+
+# Keep third-party DSP runtime performant even in Debug builds to avoid audio callback overruns.
+if(MSVC)
+  target_compile_options(audio_dsp_tools_runtime PRIVATE $<$<CONFIG:Debug>:/O2>)
+else()
+  target_compile_options(audio_dsp_tools_runtime PRIVATE $<$<CONFIG:Debug>:-O3>)
+endif()
+
 juce_add_plugin(${TARGET_NAME}
   COMPANY_NAME "phillipmself"
   PRODUCT_NAME "NAM Parametric Plugin"
@@ -92,12 +127,16 @@ juce_add_plugin(${TARGET_NAME}
 juce_generate_juce_header(${TARGET_NAME})
 
 target_sources(${TARGET_NAME} PRIVATE
+  Source/DSP/IrEngine.cpp
+  Source/DSP/IrEngine.h
   Source/DSP/NamModelEngine.cpp
   Source/DSP/NamModelEngine.h
   Source/NamParametricPluginEditor.cpp
   Source/NamParametricPluginEditor.h
   Source/NamParametricPluginProcessor.cpp
   Source/NamParametricPluginProcessor.h
+  Source/UI/IrBarComponent.cpp
+  Source/UI/IrBarComponent.h
   Source/UI/ModelBarComponent.cpp
   Source/UI/ModelBarComponent.h
   Source/UI/ModelParametersPanel.cpp
@@ -146,6 +185,7 @@ target_compile_definitions(${TARGET_NAME} PRIVATE
 
 target_link_libraries(${TARGET_NAME}
   PRIVATE
+    audio_dsp_tools_runtime
     juce::juce_audio_utils
     juce::juce_dsp
   PUBLIC

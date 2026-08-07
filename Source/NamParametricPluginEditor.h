@@ -3,6 +3,7 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 
 #include "NamParametricPluginProcessor.h"
+#include "UI/IrBarComponent.h"
 #include "UI/ModelBarComponent.h"
 #include "UI/ModelParametersPanel.h"
 #include "UI/NamLookAndFeel.h"
@@ -28,7 +29,9 @@ class NamParametricPluginAudioProcessorEditor final : public juce::AudioProcesso
   void RebuildRuntimeParameterControls(const std::vector<RuntimeParameterInfo>& params);
   double GetInitialRuntimeValue(size_t index, const RuntimeParameterInfo& param) const;
   void UpdateModelBarInfo();
+  void UpdateIrBarInfo();
   void ShowModelChooser();
+  void ShowIrChooser();
   void UpdateResizeLimits();
   void timerCallback() override;
 
@@ -37,8 +40,11 @@ class NamParametricPluginAudioProcessorEditor final : public juce::AudioProcesso
   TopBarComponent mTopBar;
   ModelParametersPanel mParametersPanel;
   ModelBarComponent mModelBar;
+  IrBarComponent mIrBar;
 
   std::unique_ptr<juce::FileChooser> mModelChooser;
+  std::unique_ptr<juce::FileChooser> mIrChooser;
+  juce::RangedAudioParameter* mIrEnabledParameter = nullptr;
 
   std::unique_ptr<SliderAttachment> mInputAttachment;
   std::unique_ptr<SliderAttachment> mOutputAttachment;

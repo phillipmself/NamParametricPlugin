@@ -40,12 +40,13 @@ void SegmentedSwitch::paint(juce::Graphics& g) {
     return;
   }
 
+  const float alpha = isEnabled() ? 1.0f : 0.4f;
   const auto bounds = getLocalBounds().toFloat();
   const float outerRadius = bounds.getHeight() / 2.0f;
 
-  g.setColour(nam::ui::Colours::topBarBackground);
+  g.setColour(nam::ui::Colours::topBarBackground.withAlpha(alpha));
   g.fillRoundedRectangle(bounds, outerRadius);
-  g.setColour(nam::ui::Colours::hairline);
+  g.setColour(nam::ui::Colours::hairline.withAlpha(alpha));
   g.drawRoundedRectangle(bounds.reduced(0.5f), outerRadius, 1.0f);
 
   const auto inner = bounds.reduced(2.0f);
@@ -60,11 +61,11 @@ void SegmentedSwitch::paint(juce::Graphics& g) {
                                segmentWidth, inner.getHeight());
 
     if (i == mSelectedIndex) {
-      g.setColour(nam::ui::Colours::accent);
+      g.setColour(nam::ui::Colours::accent.withAlpha(alpha));
       g.fillRoundedRectangle(segment, innerRadius);
-      g.setColour(nam::ui::Colours::onAccent);
+      g.setColour(nam::ui::Colours::onAccent.withAlpha(alpha));
     } else {
-      g.setColour(nam::ui::Colours::textTertiary);
+      g.setColour(nam::ui::Colours::textTertiary.withAlpha(alpha));
     }
 
     g.drawText(mOptions[i], segment.toNearestInt(), juce::Justification::centred);
@@ -72,7 +73,7 @@ void SegmentedSwitch::paint(juce::Graphics& g) {
 }
 
 void SegmentedSwitch::mouseUp(const juce::MouseEvent& event) {
-  if (mOptions.isEmpty() || getWidth() <= 0) {
+  if (!isEnabled() || mOptions.isEmpty() || getWidth() <= 0) {
     return;
   }
 

@@ -8,6 +8,7 @@
 namespace {
 constexpr int kTopBarHeight = 110;
 constexpr int kModelBarHeight = 64;
+constexpr int kIrBarHeight = 64;
 constexpr int kDefaultWidth = 640;
 constexpr int kMinWidth = 520;
 constexpr int kMaxWidth = 1400;
@@ -93,8 +94,19 @@ void NamParametricPluginAudioProcessorEditor::UpdateModelBarInfo() {
   mModelBar.SetModelInfo(loaded, text);
 }
 
+void NamParametricPluginAudioProcessorEditor::UpdateIrBarInfo() {
+  const bool loaded = mProcessor.HasIrLoaded();
+  const auto text =
+      loaded ? juce::File(mProcessor.GetIrPath()).getFileName() : mProcessor.GetIrStatusText();
+  mIrBar.SetIrInfo(loaded, text);
+
+  const bool enabled = mIrEnabledParameter != nullptr && mIrEnabledParameter->getValue() >= 0.5f;
+  mIrBar.getEnabledSwitch().setSelectedIndex(enabled ? 1 : 0, juce::dontSendNotification);
+}
+
 void NamParametricPluginAudioProcessorEditor::UpdateResizeLimits() {
-  const int minHeight = kTopBarHeight + mParametersPanel.GetMinimumContentHeight() + kModelBarHeight;
+  const int minHeight =
+      kTopBarHeight + mParametersPanel.GetMinimumContentHeight() + kModelBarHeight + kIrBarHeight;
   setResizeLimits(kMinWidth, minHeight, kMaxWidth, kMaxHeight);
 }
 
@@ -113,6 +125,21 @@ void NamParametricPluginAudioProcessorEditor::ShowModelChooser() {
   });
 }
 
+void NamParametricPluginAudioProcessorEditor::ShowIrChooser() {
+  mIrChooser = std::make_unique<juce::FileChooser>("Select an impulse response", juce::File(), "*.wav");
+
+  const int chooserFlags =
+      juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
+
+  mIrChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& chooser) {
+    const juce::File selectedFile = chooser.getResult();
+    if (selectedFile.existsAsFile()) {
+      mProcessor.LoadIrAsync(selectedFile);
+    }
+    mIrChooser.reset();
+  });
+}
+
 NamParametricPluginAudioProcessorEditor::NamParametricPluginAudioProcessorEditor(
     NamParametricPluginAudioProcessor& pluginProcessor)
     : juce::AudioProcessorEditor(&pluginProcessor), mProcessor(pluginProcessor) {
@@ -121,8 +148,20 @@ NamParametricPluginAudioProcessorEditor::NamParametricPluginAudioProcessorEditor
   addAndMakeVisible(mTopBar);
   addAndMakeVisible(mParametersPanel);
   addAndMakeVisible(mModelBar);
+  addAndMakeVisible(mIrBar);
 
   mModelBar.getSelectButton().onClick = [this]() { ShowModelChooser(); };
+
+  mIrBar.getSelectButton().onClick = [this]() { ShowIrChooser(); };
+  mIrBar.getClearButton().onClick = [this]() { mProcessor.ClearIr(); };
+
+  mIrEnabledParameter =
+      mProcessor.mValueTree.getParameter(NamParametricPluginAudioProcessor::ParamIDs::irEnabled);
+  mIrBar.getEnabledSwitch().onChange = [this](int index) {
+    if (mIrEnabledParameter != nullptr) {
+      mIrEnabledParameter->setValueNotifyingHost(index == 1 ? 1.0f : 0.0f);
+    }
+  };
 
   mParametersPanel.onValueChanged = [this](size_t index, double value) {
     mProcessor.SetRuntimeParameterValue(index, value);
@@ -137,12 +176,13 @@ NamParametricPluginAudioProcessorEditor::NamParametricPluginAudioProcessorEditor
 
   UpdateRuntimeParameterControls();
   UpdateModelBarInfo();
+  UpdateIrBarInfo();
   startTimerHz(12);
 
   setResizable(true, true);
   UpdateResizeLimits();
-  const int initialHeight =
-      kTopBarHeight + mParametersPanel.GetMinimumContentHeight() + kModelBarHeight + 30;
+  const int initialHeight = kTopBarHeight + mParametersPanel.GetMinimumContentHeight() +
+                            kModelBarHeight + kIrBarHeight + 30;
   setSize(kDefaultWidth, initialHeight);
 }
 
@@ -157,11 +197,13 @@ void NamParametricPluginAudioProcessorEditor::paint(juce::Graphics& g) {
 void NamParametricPluginAudioProcessorEditor::resized() {
   auto bounds = getLocalBounds();
   mTopBar.setBounds(bounds.removeFromTop(kTopBarHeight));
+  mIrBar.setBounds(bounds.removeFromBottom(kIrBarHeight));
   mModelBar.setBounds(bounds.removeFromBottom(kModelBarHeight));
   mParametersPanel.setBounds(bounds);
 }
 
 void NamParametricPluginAudioProcessorEditor::timerCallback() {
   UpdateModelBarInfo();
+  UpdateIrBarInfo();
   UpdateRuntimeParameterControls();
 }

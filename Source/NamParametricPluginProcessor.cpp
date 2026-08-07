@@ -8,6 +8,7 @@
 
 namespace {
 constexpr const char* kModelPathStateKey = "modelPath";
+constexpr const char* kIrPathStateKey = "irPath";
 constexpr const char* kRuntimeParamsStateType = "RUNTIME_PARAMS";
 constexpr const char* kRuntimeParamStateType = "PARAM";
 constexpr const char* kRuntimeParamIndexStateKey = "index";
@@ -129,6 +130,7 @@ NamParametricPluginAudioProcessor::NamParametricPluginAudioProcessor()
       mValueTree(*this, nullptr, "PARAMS", CreateParameterLayout()) {
   mInputGainParam = mValueTree.getRawParameterValue(ParamIDs::inputGainDb);
   mOutputGainParam = mValueTree.getRawParameterValue(ParamIDs::outputGainDb);
+  mIrEnabledParam = mValueTree.getRawParameterValue(ParamIDs::irEnabled);
   startTimerHz(30);
 }
 
@@ -144,13 +146,26 @@ void NamParametricPluginAudioProcessor::prepareToPlay(const double sampleRate,
 
   mInputScratch.assign(static_cast<size_t>(preparedBlockSize), 0.0f);
   mOutputScratch.assign(static_cast<size_t>(preparedBlockSize), 0.0f);
+  mIrOutputScratch.assign(static_cast<size_t>(preparedBlockSize), 0.0f);
 
-  std::lock_guard<std::mutex> lock(mLoadMutex);
-  if (mActiveProcessingState != nullptr) {
-    mActiveProcessingState->model->Reset(sampleRate, preparedBlockSize);
+  {
+    std::lock_guard<std::mutex> lock(mLoadMutex);
+    if (mActiveProcessingState != nullptr) {
+      mActiveProcessingState->model->Reset(sampleRate, preparedBlockSize);
+    }
+    if (mStagedProcessingState != nullptr) {
+      mStagedProcessingState->model->Reset(sampleRate, preparedBlockSize);
+    }
   }
-  if (mStagedProcessingState != nullptr) {
-    mStagedProcessingState->model->Reset(sampleRate, preparedBlockSize);
+
+  {
+    std::lock_guard<std::mutex> lock(mIrLoadMutex);
+    if (mActiveIr != nullptr) {
+      mActiveIr->Reset(sampleRate, preparedBlockSize);
+    }
+    if (mStagedIr != nullptr) {
+      mStagedIr->Reset(sampleRate, preparedBlockSize);
+    }
   }
 }
 
@@ -173,12 +188,14 @@ void NamParametricPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& b
   const int numSamples = buffer.getNumSamples();
 
   TryPromoteStagedModel();
+  TryPromoteStagedIr();
   ApplyPendingRuntimeParameterChanges();
 
   const float inputGainDb = mInputGainParam != nullptr ? mInputGainParam->load() : 0.0f;
   const float outputGainDb = mOutputGainParam != nullptr ? mOutputGainParam->load() : 0.0f;
   const float inputGain = juce::Decibels::decibelsToGain(inputGainDb);
   const float outputGain = juce::Decibels::decibelsToGain(outputGainDb);
+  const bool irEnabled = mIrEnabledParam != nullptr && mIrEnabledParam->load() >= 0.5f;
 
   const float* input = buffer.getReadPointer(0);
   float* output = buffer.getWritePointer(0);
@@ -195,6 +212,11 @@ void NamParametricPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& b
                                              chunkSize);
     } else {
       std::copy_n(mInputScratch.data(), chunkSize, mOutputScratch.data());
+    }
+
+    if (irEnabled && mActiveIr != nullptr && mActiveIr->IsLoaded()) {
+      mActiveIr->Process(mOutputScratch.data(), mIrOutputScratch.data(), chunkSize);
+      std::swap(mOutputScratch, mIrOutputScratch);
     }
 
     for (int i = 0; i < chunkSize; ++i) {
@@ -218,6 +240,8 @@ NamParametricPluginAudioProcessor::CreateParameterLayout() {
       juce::ParameterID(ParamIDs::inputGainDb, 1), "Input Gain", gainRange, 0.0f, gainAttrs));
   params.push_back(std::make_unique<juce::AudioParameterFloat>(
       juce::ParameterID(ParamIDs::outputGainDb, 1), "Output Gain", gainRange, 0.0f, gainAttrs));
+  params.push_back(std::make_unique<juce::AudioParameterBool>(
+      juce::ParameterID(ParamIDs::irEnabled, 1), "IR Enabled", true));
 
   return {params.begin(), params.end()};
 }
@@ -239,6 +263,25 @@ void NamParametricPluginAudioProcessor::TryPromoteStagedModel() {
 
   mRetiredProcessingState = std::move(mActiveProcessingState);
   mActiveProcessingState = std::move(mStagedProcessingState);
+}
+
+void NamParametricPluginAudioProcessor::TryPromoteStagedIr() {
+  std::unique_lock<std::mutex> lock(mIrLoadMutex, std::try_to_lock);
+  if (!lock.owns_lock() || mRetiredIr != nullptr) {
+    return;
+  }
+
+  if (mIrClearStaged) {
+    mRetiredIr = std::move(mActiveIr);
+    mIrClearStaged = false;
+    return;
+  }
+  if (mStagedIr == nullptr) {
+    return;
+  }
+
+  mRetiredIr = std::move(mActiveIr);
+  mActiveIr = std::move(mStagedIr);
 }
 
 void NamParametricPluginAudioProcessor::LoadModelAsync(const juce::File& modelFile) {
@@ -420,6 +463,134 @@ void NamParametricPluginAudioProcessor::StageModelClear() {
   mClearModelStaged = true;
 }
 
+void NamParametricPluginAudioProcessor::LoadIrAsync(const juce::File& irFile) {
+  CollectCompletedIrLoad();
+  StartIrLoad(irFile);
+
+  if (irFile.existsAsFile()) {
+    if (auto* enabledParam = mValueTree.getParameter(ParamIDs::irEnabled)) {
+      enabledParam->setValueNotifyingHost(1.0f);
+    }
+  }
+}
+
+void NamParametricPluginAudioProcessor::StartIrLoad(const juce::File& irFile) {
+  if (!irFile.existsAsFile()) {
+    std::lock_guard<std::mutex> lock(mIrLoadMutex);
+    mIrStatusText = "IR file does not exist: " + irFile.getFullPathName();
+    return;
+  }
+
+  std::lock_guard<std::mutex> lock(mIrLoadMutex);
+  IrLoadRequest request{irFile, ++mLatestIrLoadRequestId};
+  if (mIrLoadFuture.has_value()) {
+    mQueuedIrLoadRequest = std::move(request);
+    mIrStatusText = "Queued IR: " + irFile.getFileName();
+    return;
+  }
+
+  BeginIrLoadLocked(std::move(request));
+}
+
+void NamParametricPluginAudioProcessor::BeginIrLoadLocked(IrLoadRequest request) {
+  const juce::String fullPath = request.irFile.getFullPathName();
+  const std::string irPath = fullPath.toStdString();
+  const juce::String fileName = request.irFile.getFileName();
+  const auto hostConfig = mHostProcessingConfig;
+
+  mIrStatusText = "Loading IR: " + fileName;
+  mIrLoadFuture.emplace(std::async(std::launch::async, [irPath, fullPath, hostConfig,
+                                                        loadRequest = std::move(request)]() mutable {
+    IrAsyncLoadResult result;
+    result.requestId = loadRequest.requestId;
+    auto ir = std::make_unique<namparametric::dsp::IrEngine>();
+
+    std::string error;
+    double sampleRate = 48000.0;
+    int blockSize = kMinimumModelResetBlockSize;
+    for (;;) {
+      const uint64_t generationBefore = hostConfig->generation.load(std::memory_order_acquire);
+      if ((generationBefore & 1ULL) != 0) {
+        continue;
+      }
+      sampleRate = hostConfig->sampleRate.load(std::memory_order_relaxed);
+      blockSize = std::max(hostConfig->blockSize.load(std::memory_order_relaxed),
+                           kMinimumModelResetBlockSize);
+      if (generationBefore == hostConfig->generation.load(std::memory_order_acquire)) {
+        break;
+      }
+    }
+
+    if (!ir->LoadIr(irPath, sampleRate, error)) {
+      result.message = "Failed to load IR: " + juce::String(error);
+      return result;
+    }
+    ir->Reset(sampleRate, blockSize);
+
+    result.success = true;
+    result.loadedPath = fullPath;
+    result.message = "Loaded IR: " + juce::File(fullPath).getFileName();
+    result.irEngine = std::move(ir);
+    return result;
+  }));
+}
+
+void NamParametricPluginAudioProcessor::CollectCompletedIrLoad() {
+  std::lock_guard<std::mutex> lock(mIrLoadMutex);
+  mRetiredIr.reset();
+
+  if (!mIrLoadFuture.has_value() ||
+      mIrLoadFuture->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+    return;
+  }
+
+  IrAsyncLoadResult result = mIrLoadFuture->get();
+  mIrLoadFuture.reset();
+  if (result.requestId == mLatestIrLoadRequestId) {
+    if (!result.success) {
+      mIrStatusText = result.message;
+    } else {
+      mStagedIr = std::move(result.irEngine);
+      mIrPath = result.loadedPath;
+      mIrStatusText = result.message;
+      mIrClearStaged = false;
+    }
+  }
+
+  if (mQueuedIrLoadRequest.has_value()) {
+    auto queuedRequest = std::move(*mQueuedIrLoadRequest);
+    mQueuedIrLoadRequest.reset();
+    BeginIrLoadLocked(std::move(queuedRequest));
+  }
+}
+
+void NamParametricPluginAudioProcessor::ClearIr() { StageIrClear(); }
+
+void NamParametricPluginAudioProcessor::StageIrClear() {
+  std::lock_guard<std::mutex> lock(mIrLoadMutex);
+  ++mLatestIrLoadRequestId;
+  mQueuedIrLoadRequest.reset();
+  mStagedIr.reset();
+  mIrPath.clear();
+  mIrStatusText = "No IR loaded";
+  mIrClearStaged = true;
+}
+
+juce::String NamParametricPluginAudioProcessor::GetIrStatusText() const {
+  std::lock_guard<std::mutex> lock(mIrLoadMutex);
+  return mIrStatusText;
+}
+
+juce::String NamParametricPluginAudioProcessor::GetIrPath() const {
+  std::lock_guard<std::mutex> lock(mIrLoadMutex);
+  return mIrPath;
+}
+
+bool NamParametricPluginAudioProcessor::HasIrLoaded() const {
+  std::lock_guard<std::mutex> lock(mIrLoadMutex);
+  return !mIrClearStaged && (mActiveIr != nullptr || mStagedIr != nullptr);
+}
+
 juce::String NamParametricPluginAudioProcessor::GetStatusText() const {
   std::lock_guard<std::mutex> lock(mLoadMutex);
   return mStatusText;
@@ -501,6 +672,7 @@ void NamParametricPluginAudioProcessor::ApplyPendingRuntimeParameterChanges() {
 
 void NamParametricPluginAudioProcessor::getStateInformation(juce::MemoryBlock& destData) {
   CollectCompletedModelLoad();
+  CollectCompletedIrLoad();
   auto state = mValueTree.copyState();
   juce::String modelPath;
   std::vector<RuntimeParameterInfo> params;
@@ -513,6 +685,7 @@ void NamParametricPluginAudioProcessor::getStateInformation(juce::MemoryBlock& d
     mailbox = mRuntimeParameterMailbox;
   }
   state.setProperty(kModelPathStateKey, modelPath, nullptr);
+  state.setProperty(kIrPathStateKey, GetIrPath(), nullptr);
 
   auto child = state.getChildWithName(kRuntimeParamsStateType);
   while (child.isValid()) {
@@ -568,19 +741,34 @@ void NamParametricPluginAudioProcessor::setStateInformation(const void* data,
   const juce::String restoredPath = tree.getProperty(kModelPathStateKey).toString();
   if (restoredPath.isEmpty()) {
     StageModelClear();
-    return;
+  } else {
+    const juce::File modelFile(restoredPath);
+    if (modelFile.existsAsFile() && modelFile.hasReadAccess()) {
+      StartModelLoad(modelFile, std::move(restoredValues));
+    } else {
+      std::lock_guard<std::mutex> lock(mLoadMutex);
+      mStatusText = "Stored model path is unavailable: " + restoredPath;
+    }
   }
 
-  const juce::File modelFile(restoredPath);
-  if (modelFile.existsAsFile() && modelFile.hasReadAccess()) {
-    StartModelLoad(modelFile, std::move(restoredValues));
+  const juce::String restoredIrPath = tree.getProperty(kIrPathStateKey).toString();
+  if (restoredIrPath.isEmpty()) {
+    StageIrClear();
   } else {
-    std::lock_guard<std::mutex> lock(mLoadMutex);
-    mStatusText = "Stored model path is unavailable: " + restoredPath;
+    const juce::File irFile(restoredIrPath);
+    if (irFile.existsAsFile() && irFile.hasReadAccess()) {
+      StartIrLoad(irFile);
+    } else {
+      std::lock_guard<std::mutex> lock(mIrLoadMutex);
+      mIrStatusText = "Stored IR path is unavailable: " + restoredIrPath;
+    }
   }
 }
 
-void NamParametricPluginAudioProcessor::timerCallback() { CollectCompletedModelLoad(); }
+void NamParametricPluginAudioProcessor::timerCallback() {
+  CollectCompletedModelLoad();
+  CollectCompletedIrLoad();
+}
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
   return new NamParametricPluginAudioProcessor();
