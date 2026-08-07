@@ -61,6 +61,12 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install Ninja
+        run: choco install ninja -y
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Configure
         run: cmake --preset windows-release -DNAM_PARAMETRIC_BUILD_TESTS=OFF
 

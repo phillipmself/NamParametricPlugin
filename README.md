@@ -67,8 +67,10 @@ macOS:
 - `clang-format` (for local formatting consistency)
 
 Windows:
-- Visual Studio 2022 (Desktop development with C++ workload)
+- Visual Studio (Desktop development with C++ workload) or the standalone MSVC Build Tools
+- Ninja
 - CMake `>= 3.22`
+- Run from a "Developer PowerShell/Command Prompt for VS" (or run `vcvarsall.bat`/`Enter-VsDevShell` first) so `cl.exe` is on `PATH`
 
 ## Setup
 
