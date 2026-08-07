@@ -126,7 +126,7 @@ bool NamParametricPluginAudioProcessor::RuntimeParameterMailbox::TryReadStable(
 NamParametricPluginAudioProcessor::NamParametricPluginAudioProcessor()
     : juce::AudioProcessor(BusesProperties()
                                .withInput("Input", juce::AudioChannelSet::mono(), true)
-                               .withOutput("Output", juce::AudioChannelSet::mono(), true)),
+                               .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       mValueTree(*this, nullptr, "PARAMS", CreateParameterLayout()) {
   mInputGainParam = mValueTree.getRawParameterValue(ParamIDs::inputGainDb);
   mOutputGainParam = mValueTree.getRawParameterValue(ParamIDs::outputGainDb);
@@ -173,7 +173,7 @@ void NamParametricPluginAudioProcessor::releaseResources() {}
 
 bool NamParametricPluginAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
   return layouts.getMainInputChannelSet() == juce::AudioChannelSet::mono() &&
-         layouts.getMainOutputChannelSet() == juce::AudioChannelSet::mono();
+         layouts.getMainOutputChannelSet() == juce::AudioChannelSet::stereo();
 }
 
 void NamParametricPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
@@ -198,7 +198,8 @@ void NamParametricPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& b
   const bool irEnabled = mIrEnabledParam != nullptr && mIrEnabledParam->load() >= 0.5f;
 
   const float* input = buffer.getReadPointer(0);
-  float* output = buffer.getWritePointer(0);
+  float* outputLeft = buffer.getWritePointer(0);
+  float* outputRight = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : nullptr;
   const int chunkCapacity = static_cast<int>(mInputScratch.size());
 
   for (int offset = 0; offset < numSamples; offset += chunkCapacity) {
@@ -220,7 +221,11 @@ void NamParametricPluginAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     }
 
     for (int i = 0; i < chunkSize; ++i) {
-      output[offset + i] = mOutputScratch[static_cast<size_t>(i)] * outputGain;
+      const float sample = mOutputScratch[static_cast<size_t>(i)] * outputGain;
+      outputLeft[offset + i] = sample;
+      if (outputRight != nullptr) {
+        outputRight[offset + i] = sample;
+      }
     }
   }
 }
