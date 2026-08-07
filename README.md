@@ -3,6 +3,16 @@
 JUCE-based `VST3 + AU + Standalone` plugin for loading and running Neural Amp Modeler (`.nam`) models,
 including parametric NAM models via `nam_core_parametric`.
 
+## Related Projects
+
+This plugin builds on two companion repositories:
+
+- [neural-amp-modeler-parametric](https://github.com/phillipmself/neural-amp-modeler-parametric) —
+  trains and generates the parametric `.nam` models this plugin loads.
+- [NeuralAmpModelerCoreParametric](https://github.com/phillipmself/NeuralAmpModelerCoreParametric) —
+  the core inference code (vendored here as `nam_core_parametric`) that allows the plugin to run
+  those parametric models.
+
 ## Download
 
 Prebuilt builds are published on the
