@@ -5,6 +5,7 @@
 namespace {
 constexpr int kSelectButtonWidth = 150;
 constexpr int kDotDiameter = 8;
+constexpr int kClearButtonWidth = 22;
 }  // namespace
 
 ModelBarComponent::ModelBarComponent() {
@@ -16,6 +17,11 @@ ModelBarComponent::ModelBarComponent() {
   mNameLabel.setColour(juce::Label::textColourId, nam::ui::Colours::textSecondary);
   addAndMakeVisible(mNameLabel);
 
+  mClearButton.setButtonText(juce::CharPointer_UTF8("\xc3\x97"));
+  mClearButton.setColour(juce::TextButton::buttonColourId, nam::ui::Colours::track);
+  mClearButton.setColour(juce::TextButton::textColourOffId, nam::ui::Colours::textSecondary);
+  addAndMakeVisible(mClearButton);
+
   SetModelInfo(false, "No model loaded");
 }
 
@@ -24,6 +30,7 @@ void ModelBarComponent::SetModelInfo(const bool isLoaded, const juce::String& te
   mNameLabel.setText(text, juce::dontSendNotification);
   mNameLabel.setColour(juce::Label::textColourId,
                        isLoaded ? nam::ui::Colours::textPrimary : nam::ui::Colours::textTertiary);
+  mClearButton.setVisible(isLoaded);
   repaint();
 }
 
@@ -40,6 +47,10 @@ void ModelBarComponent::resized() {
   auto bounds = getLocalBounds().reduced(18, 12);
   mSelectButton.setBounds(bounds.removeFromLeft(kSelectButtonWidth));
   bounds.removeFromLeft(14);
+
+  mClearButton.setBounds(bounds.removeFromRight(kClearButtonWidth).withSizeKeepingCentre(
+      kClearButtonWidth, kClearButtonWidth));
+  bounds.removeFromRight(6);
 
   mDotBounds = bounds.removeFromLeft(kDotDiameter).withSizeKeepingCentre(kDotDiameter, kDotDiameter);
   bounds.removeFromLeft(8);

@@ -10,11 +10,13 @@ class ModelBarComponent final : public juce::Component {
   void resized() override;
 
   juce::TextButton& getSelectButton() { return mSelectButton; }
+  juce::TextButton& getClearButton() { return mClearButton; }
   void SetModelInfo(bool isLoaded, const juce::String& text);
 
  private:
   juce::TextButton mSelectButton;
   juce::Label mNameLabel;
+  juce::TextButton mClearButton;
   bool mIsLoaded = false;
   juce::Rectangle<int> mDotBounds;
 

@@ -294,6 +294,8 @@ void NamParametricPluginAudioProcessor::LoadModelAsync(const juce::File& modelFi
   StartModelLoad(modelFile);
 }
 
+void NamParametricPluginAudioProcessor::ClearModel() { StageModelClear(); }
+
 void NamParametricPluginAudioProcessor::StartModelLoad(
     const juce::File& modelFile, std::vector<RestoredRuntimeParameterValue> restoredValues) {
   if (!modelFile.existsAsFile()) {

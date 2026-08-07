@@ -158,6 +158,7 @@ NamParametricPluginAudioProcessorEditor::NamParametricPluginAudioProcessorEditor
   addAndMakeVisible(mIrBar);
 
   mModelBar.getSelectButton().onClick = [this]() { ShowModelChooser(); };
+  mModelBar.getClearButton().onClick = [this]() { mProcessor.ClearModel(); };
 
   mIrBar.getSelectButton().onClick = [this]() { ShowIrChooser(); };
   mIrBar.getClearButton().onClick = [this]() { mProcessor.ClearIr(); };

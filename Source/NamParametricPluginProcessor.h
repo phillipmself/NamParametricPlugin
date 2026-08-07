@@ -62,6 +62,7 @@ class NamParametricPluginAudioProcessor final : public juce::AudioProcessor, pri
   void setStateInformation(const void* data, int sizeInBytes) override;
 
   void LoadModelAsync(const juce::File& modelFile);
+  void ClearModel();
   juce::String GetStatusText() const;
   juce::String GetModelPath() const;
   bool HasModelLoaded() const;
