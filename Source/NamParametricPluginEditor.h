@@ -3,6 +3,7 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 
 #include "NamParametricPluginProcessor.h"
+#include "UI/AboutOverlayComponent.h"
 #include "UI/IrBarComponent.h"
 #include "UI/ModelBarComponent.h"
 #include "UI/ModelParametersPanel.h"
@@ -41,6 +42,8 @@ class NamParametricPluginAudioProcessorEditor final : public juce::AudioProcesso
   ModelParametersPanel mParametersPanel;
   ModelBarComponent mModelBar;
   IrBarComponent mIrBar;
+  juce::TextButton mAboutButton{"i"};
+  AboutOverlayComponent mAboutOverlay;
 
   std::unique_ptr<juce::FileChooser> mModelChooser;
   std::unique_ptr<juce::FileChooser> mIrChooser;

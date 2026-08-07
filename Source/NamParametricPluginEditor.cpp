@@ -13,6 +13,8 @@ constexpr int kDefaultWidth = 640;
 constexpr int kMinWidth = 520;
 constexpr int kMaxWidth = 1400;
 constexpr int kMaxHeight = 900;
+constexpr int kAboutButtonSize = 22;
+constexpr int kAboutButtonMargin = 14;
 }  // namespace
 
 bool NamParametricPluginAudioProcessorEditor::RuntimeParameterListsEqual(
@@ -157,6 +159,12 @@ NamParametricPluginAudioProcessorEditor::NamParametricPluginAudioProcessorEditor
   addAndMakeVisible(mModelBar);
   addAndMakeVisible(mIrBar);
 
+  mAboutButton.setColour(juce::TextButton::buttonColourId, nam::ui::Colours::track);
+  mAboutButton.setColour(juce::TextButton::textColourOffId, nam::ui::Colours::textSecondary);
+  mAboutButton.onClick = [this]() { mAboutOverlay.Show(); };
+  addAndMakeVisible(mAboutButton);
+  addChildComponent(mAboutOverlay);
+
   mModelBar.getSelectButton().onClick = [this]() { ShowModelChooser(); };
   mModelBar.getClearButton().onClick = [this]() { mProcessor.ClearModel(); };
 
@@ -208,6 +216,11 @@ void NamParametricPluginAudioProcessorEditor::resized() {
   mIrBar.setBounds(bounds.removeFromBottom(kIrBarHeight));
   mModelBar.setBounds(bounds.removeFromBottom(kModelBarHeight));
   mParametersPanel.setBounds(bounds);
+
+  mAboutButton.setBounds(getWidth() - kAboutButtonSize - kAboutButtonMargin,
+                         getHeight() - kAboutButtonSize - kAboutButtonMargin, kAboutButtonSize,
+                         kAboutButtonSize);
+  mAboutOverlay.setBounds(getLocalBounds());
 }
 
 void NamParametricPluginAudioProcessorEditor::timerCallback() {

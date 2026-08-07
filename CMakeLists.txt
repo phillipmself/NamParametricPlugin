@@ -135,6 +135,8 @@ target_sources(${TARGET_NAME} PRIVATE
   Source/NamParametricPluginEditor.h
   Source/NamParametricPluginProcessor.cpp
   Source/NamParametricPluginProcessor.h
+  Source/UI/AboutOverlayComponent.cpp
+  Source/UI/AboutOverlayComponent.h
   Source/UI/IrBarComponent.cpp
   Source/UI/IrBarComponent.h
   Source/UI/ModelBarComponent.cpp
@@ -158,6 +160,22 @@ foreach(wrapper_target IN ITEMS ${TARGET_NAME}_VST3 ${TARGET_NAME}_Standalone)
     target_sources(${wrapper_target} PRIVATE
       $<TARGET_OBJECTS:nam_core_runtime>
     )
+
+    if(APPLE)
+      add_custom_command(TARGET ${wrapper_target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+          "$<TARGET_BUNDLE_CONTENT_DIR:${wrapper_target}>/Resources"
+        COMMAND ${CMAKE_COMMAND} -E copy
+          "${CMAKE_CURRENT_LIST_DIR}/THIRD-PARTY-NOTICES.md"
+          "$<TARGET_BUNDLE_CONTENT_DIR:${wrapper_target}>/Resources/THIRD-PARTY-NOTICES.md"
+      )
+    else()
+      add_custom_command(TARGET ${wrapper_target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+          "${CMAKE_CURRENT_LIST_DIR}/THIRD-PARTY-NOTICES.md"
+          "$<TARGET_FILE_DIR:${wrapper_target}>/THIRD-PARTY-NOTICES.md"
+      )
+    endif()
   endif()
 endforeach()
 

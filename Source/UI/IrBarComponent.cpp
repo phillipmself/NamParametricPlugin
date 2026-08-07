@@ -7,6 +7,9 @@ constexpr int kSelectButtonWidth = 150;
 constexpr int kDotDiameter = 8;
 constexpr int kClearButtonWidth = 22;
 constexpr int kEnabledSwitchWidth = 86;
+// Reserves room in the bottom-right corner of the window for the About
+// overlay trigger, which sits outside this component but shares its row.
+constexpr int kAboutButtonReserve = 44;
 }  // namespace
 
 IrBarComponent::IrBarComponent() {
@@ -51,6 +54,7 @@ void IrBarComponent::paint(juce::Graphics& g) {
 
 void IrBarComponent::resized() {
   auto bounds = getLocalBounds().reduced(18, 12);
+  bounds.removeFromRight(kAboutButtonReserve);
   mSelectButton.setBounds(bounds.removeFromLeft(kSelectButtonWidth));
   bounds.removeFromLeft(14);
 
