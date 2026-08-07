@@ -111,7 +111,11 @@ void NamParametricPluginAudioProcessorEditor::UpdateResizeLimits() {
 }
 
 void NamParametricPluginAudioProcessorEditor::ShowModelChooser() {
-  mModelChooser = std::make_unique<juce::FileChooser>("Select a NAM model", juce::File(), "*.nam");
+  const juce::File currentModelFile(mProcessor.GetModelPath());
+  const juce::File startDirectory = currentModelFile.existsAsFile()
+                                         ? currentModelFile.getParentDirectory()
+                                         : juce::File();
+  mModelChooser = std::make_unique<juce::FileChooser>("Select a NAM model", startDirectory, "*.nam");
 
   const int chooserFlags =
       juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
@@ -126,7 +130,10 @@ void NamParametricPluginAudioProcessorEditor::ShowModelChooser() {
 }
 
 void NamParametricPluginAudioProcessorEditor::ShowIrChooser() {
-  mIrChooser = std::make_unique<juce::FileChooser>("Select an impulse response", juce::File(), "*.wav");
+  const juce::File currentIrFile(mProcessor.GetIrPath());
+  const juce::File startDirectory =
+      currentIrFile.existsAsFile() ? currentIrFile.getParentDirectory() : juce::File();
+  mIrChooser = std::make_unique<juce::FileChooser>("Select an impulse response", startDirectory, "*.wav");
 
   const int chooserFlags =
       juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
