@@ -1,28 +1,40 @@
 # NamParametricPlugin
 
-JUCE-based `VST3 + Standalone` plugin for loading and running Neural Amp Modeler (`.nam`) models,
+JUCE-based `VST3 + AU + Standalone` plugin for loading and running Neural Amp Modeler (`.nam`) models,
 including parametric NAM models via `nam_core_parametric`.
 
-## Download (macOS)
+## Download
 
-Prebuilt macOS builds (universal: `arm64` + `x86_64`) are published on the
+Prebuilt builds are published on the
 [Releases page](https://github.com/phillipmself/NamParametricPlugin/releases).
 
-1. Download `NAM-Parametric-Plugin-<version>-macOS-VST3.zip` (for your DAW) and/or
-   `NAM-Parametric-Plugin-<version>-macOS-Standalone.zip` (standalone app).
-2. Unzip, then move the `.vst3` into `~/Library/Audio/Plug-Ins/VST3/` (or the `.app` wherever you like).
+### macOS (universal: `arm64` + `x86_64`)
+
+1. Download `NAM-Parametric-Plugin-<version>-macOS-VST3.zip`, `...-macOS-AU.zip`, and/or
+   `...-macOS-Standalone.zip` (standalone app).
+2. Unzip, then move the plugin into the matching folder (or the `.app` wherever you like):
+   - VST3: `~/Library/Audio/Plug-Ins/VST3/`
+   - AU: `~/Library/Audio/Plug-Ins/Components/`
 3. **These builds are unsigned/unnotarized**, so macOS Gatekeeper will refuse to open them the
    first time. To allow it:
-   - Right-click (or Control-click) the `.app`/`.vst3` and choose **Open**, then confirm in the
-     dialog that appears, **or**
+   - Right-click (or Control-click) the `.app`/`.vst3`/`.component` and choose **Open**, then
+     confirm in the dialog that appears, **or**
    - Run in Terminal:
      ```bash
      xattr -cr "/path/to/NAM Parametric Plugin.app"
      xattr -cr ~/Library/Audio/Plug-Ins/VST3/"NAM Parametric Plugin.vst3"
+     xattr -cr ~/Library/Audio/Plug-Ins/Components/"NAM Parametric Plugin.component"
      ```
    You only need to do this once per download.
 
-Windows builds are not available yet. To build from source instead, see below.
+### Windows (x64)
+
+1. Download `NAM-Parametric-Plugin-<version>-Windows-VST3.zip` and/or
+   `...-Windows-Standalone.zip`.
+2. Unzip, then move the `.vst3` folder into `C:\Program Files\Common Files\VST3\` (or run the
+   standalone `.exe` wherever you like).
+3. **This build is unsigned**, so Windows SmartScreen may warn that it's from an unrecognized
+   publisher. Click **More info**, then **Run anyway**. You only need to do this once per download.
 
 ## Scope (v1)
 
@@ -48,10 +60,15 @@ Windows builds are not available yet. To build from source instead, see below.
 
 ## Prerequisites
 
-- macOS toolchain (Xcode command line tools)
+macOS:
+- Xcode command line tools
 - CMake `>= 3.22`
 - Ninja
 - `clang-format` (for local formatting consistency)
+
+Windows:
+- Visual Studio 2022 (Desktop development with C++ workload)
+- CMake `>= 3.22`
 
 ## Setup
 
@@ -63,18 +80,25 @@ git submodule update --init --recursive
 
 ## Build
 
-Debug build:
+macOS debug build:
 
 ```bash
 cmake --preset mac-debug
 cmake --build --preset mac-debug -j 8
 ```
 
-Release build:
+macOS release build:
 
 ```bash
 cmake --preset mac-release
 cmake --build --preset mac-release -j 8
+```
+
+Windows release build:
+
+```bash
+cmake --preset windows-release
+cmake --build --preset windows-release
 ```
 
 ## Model Smoke Test
@@ -104,10 +128,11 @@ After a debug build, launch:
 ./build/mac-debug/NamParametricPlugin_artefacts/Debug/Standalone/NAM\ Parametric\ Plugin.app/Contents/MacOS/NAM\ Parametric\ Plugin
 ```
 
-VST3 output path (debug):
+VST3 / AU output paths (debug):
 
 ```text
 build/mac-debug/NamParametricPlugin_artefacts/Debug/VST3/NAM Parametric Plugin.vst3
+build/mac-debug/NamParametricPlugin_artefacts/Debug/AU/NAM Parametric Plugin.component
 ```
 
 ## Usage Notes
@@ -136,5 +161,4 @@ Run these checks before merging major changes:
 - Dynamic model parameters are UI-only (no host automation IDs).
 - Mono-only internal processing.
 - Model load is chooser-only (no drag/drop).
-- AU format is currently out of scope.
-- macOS-first validated path.
+- Windows build is CI-built but less battle-tested than the macOS path (macOS is the primary dev environment).

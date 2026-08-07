@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(NamParametricPlugin VERSION 0.1.0)
+project(NamParametricPlugin VERSION 0.2.0)
 
 include(CTest)
 
@@ -16,6 +16,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_subdirectory(external/JUCE)
 
 set(TARGET_NAME NamParametricPlugin)
+
+set(NAM_PLUGIN_FORMATS VST3 Standalone)
+if(APPLE)
+  list(APPEND NAM_PLUGIN_FORMATS AU)
+endif()
 
 set(AUDIODSPTOOLS_DIR ${CMAKE_CURRENT_LIST_DIR}/external/AudioDSPTools)
 set(NAM_CORE_DIR ${CMAKE_CURRENT_LIST_DIR}/external/nam_core_parametric)
@@ -120,7 +125,7 @@ juce_add_plugin(${TARGET_NAME}
   NEEDS_MIDI_INPUT FALSE
   NEEDS_MIDI_OUTPUT FALSE
   IS_MIDI_EFFECT FALSE
-  FORMATS VST3 Standalone
+  FORMATS ${NAM_PLUGIN_FORMATS}
   COPY_PLUGIN_AFTER_BUILD FALSE
 )
 
@@ -155,7 +160,7 @@ target_sources(${TARGET_NAME} PRIVATE
 # Important: put NAM object files directly into final wrapper binaries,
 # not only the JUCE shared static archive, so static factory registrars
 # are not dropped by archive dead-stripping.
-foreach(wrapper_target IN ITEMS ${TARGET_NAME}_VST3 ${TARGET_NAME}_Standalone)
+foreach(wrapper_target IN ITEMS ${TARGET_NAME}_VST3 ${TARGET_NAME}_AU ${TARGET_NAME}_Standalone)
   if(TARGET ${wrapper_target})
     target_sources(${wrapper_target} PRIVATE
       $<TARGET_OBJECTS:nam_core_runtime>
