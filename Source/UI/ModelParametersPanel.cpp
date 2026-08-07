@@ -96,6 +96,8 @@ void ModelParametersPanel::RebuildControls(const std::vector<RuntimeParameterInf
       const double interval = std::max(0.0001, (maxValue - minValue) / 1000.0);
       control.knob->setRange(minValue, maxValue, interval);
       control.knob->setValue(initialValue, juce::dontSendNotification);
+      control.knob->setDoubleClickReturnValue(
+          true, juce::jlimit(minValue, maxValue, param.defaultValue));
 
       control.valueLabel = std::make_unique<juce::Label>();
       control.valueLabel->setText(FormatParamValue(initialValue), juce::dontSendNotification);
