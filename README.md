@@ -36,6 +36,25 @@ Prebuilt builds are published on the
 3. **This build is unsigned**, so Windows SmartScreen may warn that it's from an unrecognized
    publisher. Click **More info**, then **Run anyway**. You only need to do this once per download.
 
+## Models
+
+Parametric `.nam` models are published as their own releases, separate from the plugin builds, on the
+[Releases page](https://github.com/phillipmself/NamParametricPlugin/releases). Model releases use a
+`models-*` tag so they version independently of the plugin.
+
+**Latest:**
+[5153 100W (Blue) — Parametric Models v1](https://github.com/phillipmself/NamParametricPlugin/releases/tag/models-5153-v1)
+
+- `5153_100w_Blue_ConcatWaveNet_BoostInput+4dB.nam` — ConcatWaveNet capture.
+- `5153_100w_Blue_HyperWaveNet_BoostInput+4dB.nam` — HyperWaveNet capture.
+- `models-5153-v1.zip` — both of the above.
+
+To use a model, download a `.nam` file and load it in the plugin (see [Usage Notes](#usage-notes)).
+
+> **Input calibration:** These models run a little quiet on the input. Add roughly **4–6 dB of input
+> gain** for them to respond like a real 5153. Future model releases will be more accurately
+> input-calibrated, so this extra input gain won't be needed.
+
 ## Scope (v1)
 
 - Mono input/output processing path.
