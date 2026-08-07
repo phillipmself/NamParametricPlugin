@@ -110,5 +110,6 @@ jobs:
         run: |
           gh release create "${{ github.ref_name }}" \
             dist/*.zip \
+            --repo "${{ github.repository }}" \
             --title "NAM Parametric Plugin ${{ github.ref_name }}" \
             --notes "macOS build (universal: arm64 + x86_64) and Windows x64 build. Both are unsigned. macOS: Gatekeeper will block the app/plugin on first launch — see the README for the one-time steps to allow it. Windows: SmartScreen may warn on first run — click 'More info' then 'Run anyway'."
