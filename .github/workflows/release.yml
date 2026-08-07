@@ -81,7 +81,7 @@ jobs:
           $version = "${env:GITHUB_REF_NAME}".TrimStart("v")
           New-Item -ItemType Directory -Force -Path dist | Out-Null
 
-          Compress-Archive -Path "$artefactDir/Standalone/NAM Parametric Plugin.exe" `
+          Compress-Archive -Path "$artefactDir/Standalone/NAM Parametric Plugin.exe", "$artefactDir/Standalone/THIRD-PARTY-NOTICES.md" `
             -DestinationPath "dist/NAM-Parametric-Plugin-$version-Windows-Standalone.zip"
 
           Compress-Archive -Path "$artefactDir/VST3/NAM Parametric Plugin.vst3" `
