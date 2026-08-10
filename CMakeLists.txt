@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(NamParametricPlugin VERSION 0.3.0)
+project(NamParametricPlugin VERSION 0.3.1)
 
 include(CTest)
 
