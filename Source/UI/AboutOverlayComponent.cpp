@@ -23,8 +23,8 @@ juce::File AboutOverlayComponent::FindThirdPartyNoticesFile() {
 
   // macOS/Windows VST3 and Standalone builds are Contents/MacOS/<exe> bundles;
   // the notices file is copied into Contents/Resources alongside them.
-  const auto bundleResource =
-      exeFile.getParentDirectory().getParentDirectory().getChildFile("Resources/THIRD-PARTY-NOTICES.md");
+  const auto bundleResource = exeFile.getParentDirectory().getParentDirectory().getChildFile(
+      "Resources/THIRD-PARTY-NOTICES.md");
   if (bundleResource.existsAsFile()) {
     return bundleResource;
   }
@@ -45,7 +45,8 @@ AboutOverlayComponent::AboutOverlayComponent() {
   mRepoLink.setColour(juce::HyperlinkButton::textColourId, nam::ui::Colours::textSecondary);
   addAndMakeVisible(mRepoLink);
 
-  mNoticesLink.setFont(juce::Font(juce::FontOptions(13.5f)), false, juce::Justification::centredLeft);
+  mNoticesLink.setFont(juce::Font(juce::FontOptions(13.5f)), false,
+                       juce::Justification::centredLeft);
   mNoticesLink.setColour(juce::HyperlinkButton::textColourId, nam::ui::Colours::textPrimary);
   const auto noticesFile = FindThirdPartyNoticesFile();
   if (noticesFile.existsAsFile()) {
@@ -118,9 +119,10 @@ void AboutOverlayComponent::paint(juce::Graphics& g) {
 
 void AboutOverlayComponent::resized() {
   const int cardHeight = kCardPadding * 2 + kTitleHeight + kRowGap + kVersionHeight + kRowGap +
-                         kCopyrightHeight + kRowGap + kRepoLinkHeight + kDividerGap + 1 + kDividerGap +
-                         kSectionLabelHeight + kRowGap + kNoticesLinkHeight;
-  mCardBounds = juce::Rectangle<int>(0, 0, kCardWidth, cardHeight).withCentre(getLocalBounds().getCentre());
+                         kCopyrightHeight + kRowGap + kRepoLinkHeight + kDividerGap + 1 +
+                         kDividerGap + kSectionLabelHeight + kRowGap + kNoticesLinkHeight;
+  mCardBounds =
+      juce::Rectangle<int>(0, 0, kCardWidth, cardHeight).withCentre(getLocalBounds().getCentre());
 
   mCloseButton.setBounds(mCardBounds.getRight() - kCardPadding - kCloseButtonSize + 6,
                          mCardBounds.getY() + kCardPadding - 4, kCloseButtonSize, kCloseButtonSize);

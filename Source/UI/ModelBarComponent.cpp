@@ -48,11 +48,12 @@ void ModelBarComponent::resized() {
   mSelectButton.setBounds(bounds.removeFromLeft(kSelectButtonWidth));
   bounds.removeFromLeft(14);
 
-  mClearButton.setBounds(bounds.removeFromRight(kClearButtonWidth).withSizeKeepingCentre(
-      kClearButtonWidth, kClearButtonWidth));
+  mClearButton.setBounds(bounds.removeFromRight(kClearButtonWidth)
+                             .withSizeKeepingCentre(kClearButtonWidth, kClearButtonWidth));
   bounds.removeFromRight(6);
 
-  mDotBounds = bounds.removeFromLeft(kDotDiameter).withSizeKeepingCentre(kDotDiameter, kDotDiameter);
+  mDotBounds =
+      bounds.removeFromLeft(kDotDiameter).withSizeKeepingCentre(kDotDiameter, kDotDiameter);
   bounds.removeFromLeft(8);
   mNameLabel.setBounds(bounds);
 }

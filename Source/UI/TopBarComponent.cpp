@@ -74,7 +74,8 @@ void TopBarComponent::LayoutColumn(juce::Rectangle<int> column, KnobColumn& knob
   auto bounds = column.reduced(6, kColumnVerticalPadding);
   knobColumn.tag.setBounds(bounds.removeFromTop(kTagHeight));
   bounds.removeFromTop(kColumnGap);
-  knobColumn.knob.setBounds(bounds.removeFromTop(kKnobSize).withSizeKeepingCentre(kKnobSize, kKnobSize));
+  knobColumn.knob.setBounds(
+      bounds.removeFromTop(kKnobSize).withSizeKeepingCentre(kKnobSize, kKnobSize));
   bounds.removeFromTop(kColumnGap);
   knobColumn.value.setBounds(bounds.removeFromTop(kValueHeight));
 }

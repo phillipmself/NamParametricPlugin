@@ -506,40 +506,41 @@ void NamParametricPluginAudioProcessor::BeginIrLoadLocked(IrLoadRequest request)
   const auto hostConfig = mHostProcessingConfig;
 
   mIrStatusText = "Loading IR: " + fileName;
-  mIrLoadFuture.emplace(std::async(std::launch::async, [irPath, fullPath, hostConfig,
-                                                        loadRequest = std::move(request)]() mutable {
-    IrAsyncLoadResult result;
-    result.requestId = loadRequest.requestId;
-    auto ir = std::make_unique<namparametric::dsp::IrEngine>();
+  mIrLoadFuture.emplace(std::async(
+      std::launch::async,
+      [irPath, fullPath, hostConfig, loadRequest = std::move(request)]() mutable {
+        IrAsyncLoadResult result;
+        result.requestId = loadRequest.requestId;
+        auto ir = std::make_unique<namparametric::dsp::IrEngine>();
 
-    std::string error;
-    double sampleRate = 48000.0;
-    int blockSize = kMinimumModelResetBlockSize;
-    for (;;) {
-      const uint64_t generationBefore = hostConfig->generation.load(std::memory_order_acquire);
-      if ((generationBefore & 1ULL) != 0) {
-        continue;
-      }
-      sampleRate = hostConfig->sampleRate.load(std::memory_order_relaxed);
-      blockSize = std::max(hostConfig->blockSize.load(std::memory_order_relaxed),
-                           kMinimumModelResetBlockSize);
-      if (generationBefore == hostConfig->generation.load(std::memory_order_acquire)) {
-        break;
-      }
-    }
+        std::string error;
+        double sampleRate = 48000.0;
+        int blockSize = kMinimumModelResetBlockSize;
+        for (;;) {
+          const uint64_t generationBefore = hostConfig->generation.load(std::memory_order_acquire);
+          if ((generationBefore & 1ULL) != 0) {
+            continue;
+          }
+          sampleRate = hostConfig->sampleRate.load(std::memory_order_relaxed);
+          blockSize = std::max(hostConfig->blockSize.load(std::memory_order_relaxed),
+                               kMinimumModelResetBlockSize);
+          if (generationBefore == hostConfig->generation.load(std::memory_order_acquire)) {
+            break;
+          }
+        }
 
-    if (!ir->LoadIr(irPath, sampleRate, error)) {
-      result.message = "Failed to load IR: " + juce::String(error);
-      return result;
-    }
-    ir->Reset(sampleRate, blockSize);
+        if (!ir->LoadIr(irPath, sampleRate, error)) {
+          result.message = "Failed to load IR: " + juce::String(error);
+          return result;
+        }
+        ir->Reset(sampleRate, blockSize);
 
-    result.success = true;
-    result.loadedPath = fullPath;
-    result.message = "Loaded IR: " + juce::File(fullPath).getFileName();
-    result.irEngine = std::move(ir);
-    return result;
-  }));
+        result.success = true;
+        result.loadedPath = fullPath;
+        result.message = "Loaded IR: " + juce::File(fullPath).getFileName();
+        result.irEngine = std::move(ir);
+        return result;
+      }));
 }
 
 void NamParametricPluginAudioProcessor::CollectCompletedIrLoad() {
