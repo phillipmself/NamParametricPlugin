@@ -78,13 +78,6 @@ else()
   target_compile_options(nam_core_runtime PRIVATE -w)
 endif()
 
-# Keep third-party DSP runtime performant even in Debug builds to avoid audio callback overruns.
-if(MSVC)
-  target_compile_options(nam_core_runtime PRIVATE $<$<CONFIG:Debug>:/O2>)
-else()
-  target_compile_options(nam_core_runtime PRIVATE $<$<CONFIG:Debug>:-O3>)
-endif()
-
 add_library(audio_dsp_tools_runtime OBJECT
   ${AUDIODSPTOOLS_DIR}/dsp/dsp.cpp
   ${AUDIODSPTOOLS_DIR}/dsp/wav.cpp
@@ -111,13 +104,6 @@ if(MSVC)
   target_compile_options(audio_dsp_tools_runtime PRIVATE /W0)
 else()
   target_compile_options(audio_dsp_tools_runtime PRIVATE -w)
-endif()
-
-# Keep third-party DSP runtime performant even in Debug builds to avoid audio callback overruns.
-if(MSVC)
-  target_compile_options(audio_dsp_tools_runtime PRIVATE $<$<CONFIG:Debug>:/O2>)
-else()
-  target_compile_options(audio_dsp_tools_runtime PRIVATE $<$<CONFIG:Debug>:-O3>)
 endif()
 
 juce_add_plugin(${TARGET_NAME}
