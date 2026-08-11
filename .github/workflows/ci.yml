@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+
+jobs:
+  format-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: clang-format check
+        run: |
+          find Source Tests \( -name "*.cpp" -o -name "*.h" \) \
+            | xargs clang-format --dry-run --Werror
+
+  build-macos:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Ninja
+        run: brew install ninja
+
+      - name: Configure
+        run: cmake --preset mac-debug
+
+      - name: Build
+        run: cmake --build --preset mac-debug -j $(sysctl -n hw.ncpu)
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Ninja
+        run: choco install ninja -y
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure
+        run: cmake --preset windows-debug
+
+      - name: Build
+        run: cmake --build --preset windows-debug

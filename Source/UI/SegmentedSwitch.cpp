@@ -56,9 +56,8 @@ void SegmentedSwitch::paint(juce::Graphics& g) {
   g.setFont(juce::Font(juce::FontOptions(13.0f, juce::Font::bold)));
 
   for (int i = 0; i < mOptions.size(); ++i) {
-    const auto segment =
-        juce::Rectangle<float>(inner.getX() + segmentWidth * static_cast<float>(i), inner.getY(),
-                               segmentWidth, inner.getHeight());
+    const auto segment = juce::Rectangle<float>(inner.getX() + segmentWidth * static_cast<float>(i),
+                                                inner.getY(), segmentWidth, inner.getHeight());
 
     if (i == mSelectedIndex) {
       g.setColour(nam::ui::Colours::accent.withAlpha(alpha));

@@ -91,13 +91,13 @@ void ModelParametersPanel::RebuildControls(const std::vector<RuntimeParameterInf
         maxValue = minValue + 1.0;
       }
 
-      control.knob = std::make_unique<juce::Slider>(juce::Slider::RotaryVerticalDrag,
-                                                     juce::Slider::NoTextBox);
+      control.knob =
+          std::make_unique<juce::Slider>(juce::Slider::RotaryVerticalDrag, juce::Slider::NoTextBox);
       const double interval = std::max(0.0001, (maxValue - minValue) / 1000.0);
       control.knob->setRange(minValue, maxValue, interval);
       control.knob->setValue(initialValue, juce::dontSendNotification);
-      control.knob->setDoubleClickReturnValue(
-          true, juce::jlimit(minValue, maxValue, param.defaultValue));
+      control.knob->setDoubleClickReturnValue(true,
+                                              juce::jlimit(minValue, maxValue, param.defaultValue));
 
       control.valueLabel = std::make_unique<juce::Label>();
       control.valueLabel->setText(FormatParamValue(initialValue), juce::dontSendNotification);
@@ -133,7 +133,8 @@ void ModelParametersPanel::SetValue(const size_t index, const double value) {
   if (control.isSwitch && control.switchControl != nullptr) {
     control.switchControl->setSelectedIndex(static_cast<int>(std::round(value)),
                                             juce::dontSendNotification);
-  } else if (control.knob != nullptr && !juce::approximatelyEqual(control.knob->getValue(), value)) {
+  } else if (control.knob != nullptr &&
+             !juce::approximatelyEqual(control.knob->getValue(), value)) {
     control.knob->setValue(value, juce::dontSendNotification);
     if (control.valueLabel != nullptr) {
       control.valueLabel->setText(FormatParamValue(value), juce::dontSendNotification);
@@ -142,8 +143,8 @@ void ModelParametersPanel::SetValue(const size_t index, const double value) {
 }
 
 int ModelParametersPanel::GetMinimumContentHeight() const {
-  return kEyebrowHeight + (mControls.empty() ? kEmptyStateHeight
-                                             : kTopPadding + kCellHeight + kBottomPadding);
+  return kEyebrowHeight +
+         (mControls.empty() ? kEmptyStateHeight : kTopPadding + kCellHeight + kBottomPadding);
 }
 
 void ModelParametersPanel::resized() {
@@ -154,8 +155,7 @@ void ModelParametersPanel::resized() {
 }
 
 void ModelParametersPanel::LayoutContent() {
-  const int contentWidth =
-      juce::jmax(1, mViewport.getWidth() - mViewport.getScrollBarThickness());
+  const int contentWidth = juce::jmax(1, mViewport.getWidth() - mViewport.getScrollBarThickness());
 
   if (mControls.empty()) {
     mEmptyLabel.setVisible(true);
@@ -174,10 +174,11 @@ void ModelParametersPanel::LayoutContent() {
   int currentRowWidth = 0;
 
   for (auto& control : mControls) {
-    const int cellWidth = control.isSwitch
-                              ? juce::jmax(kSwitchCellMinWidth, control.switchControl->getPreferredWidth())
-                              : kKnobCellWidth;
-    const int neededWidth = currentRow.empty() ? cellWidth : currentRowWidth + kColumnGap + cellWidth;
+    const int cellWidth = control.isSwitch ? juce::jmax(kSwitchCellMinWidth,
+                                                        control.switchControl->getPreferredWidth())
+                                           : kKnobCellWidth;
+    const int neededWidth =
+        currentRow.empty() ? cellWidth : currentRowWidth + kColumnGap + cellWidth;
 
     if (!currentRow.empty() && neededWidth > maxRowWidth) {
       rows.push_back(currentRow);
@@ -214,7 +215,8 @@ void ModelParametersPanel::LayoutContent() {
       } else {
         const int knobX = x + (cellWidth - kKnobSize) / 2;
         control->knob->setBounds(knobX, y + kLabelHeight + 6, kKnobSize, kKnobSize);
-        control->valueLabel->setBounds(x, y + kLabelHeight + 6 + kKnobSize + 4, cellWidth, kLabelHeight);
+        control->valueLabel->setBounds(x, y + kLabelHeight + 6 + kKnobSize + 4, cellWidth,
+                                       kLabelHeight);
       }
 
       x += cellWidth + kColumnGap;
@@ -223,6 +225,5 @@ void ModelParametersPanel::LayoutContent() {
     y += kCellHeight + kRowGap;
   }
 
-  mContent.setSize(contentWidth,
-                   juce::jmax(y - kRowGap + kBottomPadding, mViewport.getHeight()));
+  mContent.setSize(contentWidth, juce::jmax(y - kRowGap + kBottomPadding, mViewport.getHeight()));
 }

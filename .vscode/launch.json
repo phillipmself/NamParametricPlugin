@@ -8,6 +8,15 @@
       "program": "${command:cmake.launchTargetPath}",
       "args": [],
       "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Release (Standalone, mac-release)",
+      "type": "lldb",
+      "request": "launch",
+      "preLaunchTask": "Build (mac-release)",
+      "program": "${workspaceFolder}/build/mac-release/NamParametricPlugin_artefacts/Release/Standalone/NAM Parametric Plugin.app/Contents/MacOS/NAM Parametric Plugin",
+      "args": [],
+      "cwd": "${workspaceFolder}"
     }
   ]
 }

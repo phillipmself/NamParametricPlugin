@@ -6,7 +6,8 @@
 
 namespace namparametric::dsp {
 
-bool IrEngine::LoadIr(const std::string& irPath, const double sampleRate, std::string& errorMessage) {
+bool IrEngine::LoadIr(const std::string& irPath, const double sampleRate,
+                      std::string& errorMessage) {
   errorMessage.clear();
 
   auto ir = std::make_unique<::dsp::ImpulseResponse>(irPath.c_str(), sampleRate);

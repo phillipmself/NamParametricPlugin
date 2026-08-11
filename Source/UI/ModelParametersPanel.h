@@ -1,10 +1,10 @@
 #pragma once
 
+#include <juce_gui_basics/juce_gui_basics.h>
+
 #include <functional>
 #include <memory>
 #include <vector>
-
-#include <juce_gui_basics/juce_gui_basics.h>
 
 #include "NamParametricPluginProcessor.h"
 #include "SegmentedSwitch.h"

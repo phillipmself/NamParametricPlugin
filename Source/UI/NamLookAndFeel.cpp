@@ -32,9 +32,8 @@ NamLookAndFeel::NamLookAndFeel() {
   setColour(juce::ScrollBar::thumbColourId, track);
 }
 
-void NamLookAndFeel::drawRotarySlider(juce::Graphics& g, const int x, const int y,
-                                      const int width, const int height,
-                                      const float sliderPosProportional,
+void NamLookAndFeel::drawRotarySlider(juce::Graphics& g, const int x, const int y, const int width,
+                                      const int height, const float sliderPosProportional,
                                       const float rotaryStartAngle, const float rotaryEndAngle,
                                       juce::Slider&) {
   const auto bounds = juce::Rectangle<float>(static_cast<float>(x), static_cast<float>(y),
@@ -46,7 +45,8 @@ void NamLookAndFeel::drawRotarySlider(juce::Graphics& g, const int x, const int 
   const float centreY = bounds.getCentreY();
   const float trackRadius = radius - 2.0f;
   const float trackThickness = juce::jmax(2.0f, radius * 0.16f);
-  const float angle = rotaryStartAngle + sliderPosProportional * (rotaryEndAngle - rotaryStartAngle);
+  const float angle =
+      rotaryStartAngle + sliderPosProportional * (rotaryEndAngle - rotaryStartAngle);
 
   juce::Path trackPath;
   trackPath.addCentredArc(centreX, centreY, trackRadius, trackRadius, 0.0f, rotaryStartAngle,
@@ -65,8 +65,9 @@ void NamLookAndFeel::drawRotarySlider(juce::Graphics& g, const int x, const int 
   }
 
   const float faceRadius = trackRadius - trackThickness * 1.6f;
-  juce::ColourGradient gradient(knobFaceInner, centreX - faceRadius * 0.3f, centreY - faceRadius * 0.4f,
-                                knobFaceOuter, centreX, centreY + faceRadius, false);
+  juce::ColourGradient gradient(knobFaceInner, centreX - faceRadius * 0.3f,
+                                centreY - faceRadius * 0.4f, knobFaceOuter, centreX,
+                                centreY + faceRadius, false);
   g.setGradientFill(gradient);
   g.fillEllipse(centreX - faceRadius, centreY - faceRadius, faceRadius * 2.0f, faceRadius * 2.0f);
 

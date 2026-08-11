@@ -1,8 +1,8 @@
 #pragma once
 
-#include <functional>
-
 #include <juce_gui_basics/juce_gui_basics.h>
+
+#include <functional>
 
 class SegmentedSwitch final : public juce::Component {
  public:
