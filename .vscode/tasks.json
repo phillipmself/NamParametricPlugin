@@ -23,6 +23,30 @@
       ],
       "group": "build",
       "problemMatcher": []
+    },
+    {
+      "label": "Configure (mac-release)",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--preset",
+        "mac-release"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build (mac-release)",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "mac-release"
+      ],
+      "dependsOn": "Configure (mac-release)",
+      "group": "build",
+      "problemMatcher": []
     }
   ]
 }
